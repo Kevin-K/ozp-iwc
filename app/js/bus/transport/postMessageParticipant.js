@@ -239,8 +239,9 @@ ozpIwc.PostMessageParticipantListener.prototype.receiveFromPostMessage=function(
 	          packet.hasOwnProperty('f') &&
 	          packet.hasOwnProperty('s') &&
 	          packet.hasOwnProperty('t')
-	        ))
+	        )) {
                 ozpIwc.log.debug("Packet does not meet IWC Packet criteria, dropping.", packet);
+	    }
         }
     };
 
