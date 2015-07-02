@@ -234,7 +234,13 @@ ozpIwc.PostMessageParticipantListener.prototype.receiveFromPostMessage=function(
         if (ozpIwc.util.isIWCPacket(packet)) {
             participant.forwardFromPostMessage(packet, event);
         } else {
-            ozpIwc.log.log("Packet does not meet IWC Packet criteria, dropping.", packet);
+	    if (!(packet.hasOwnProperty('a') &&
+	          packet.hasOwnProperty('c') &&
+	          packet.hasOwnProperty('f') &&
+	          packet.hasOwnProperty('s') &&
+	          packet.hasOwnProperty('t')
+	        ))
+                ozpIwc.log.debug("Packet does not meet IWC Packet criteria, dropping.", packet);
         }
     };
 

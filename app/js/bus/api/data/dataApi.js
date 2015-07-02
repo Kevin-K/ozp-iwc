@@ -177,7 +177,7 @@ ozpIwc.DataApi.prototype.handleRemovechild=function(node,packetContext) {
  */
 ozpIwc.DataApi.prototype.handleSet=function(node,packetContext) {
     ozpIwc.CommonApiBase.prototype.handleSet.apply(this,arguments);
-    if (node && packetContext.packet.entity.persist) {
+    if (node && packetContext.packet.entity && packetContext.packet.entity.persist) {
         this.persistNode(node);
     }
 };
