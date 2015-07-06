@@ -61,7 +61,7 @@ ozpIwc.Peer=function() {
     this.unloadListener=function() {
         self.shutdown();
     };
-    window.addEventListener('beforeunload',this.unloadListener);
+    ozpIwc.util.addEventListener('beforeunload',this.unloadListener);
 
 };
 
@@ -202,7 +202,7 @@ ozpIwc.Peer.prototype.receive=function(linkId,packet) {
  */
 ozpIwc.Peer.prototype.shutdown=function() {
     this.events.trigger("beforeShutdown");
-    window.removeEventListener('beforeunload',this.unloadListener);
+    ozpIwc.util.removeEventListener('beforeunload',this.unloadListener);
 };
 
 

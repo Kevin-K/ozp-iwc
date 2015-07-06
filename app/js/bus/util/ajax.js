@@ -33,7 +33,6 @@ ozpIwc.util.ajax = function (config) {
         request.open(config.method, config.href, true);
         request.withCredentials = true;
         var setContentType = true;
-
         if (Array.isArray(config.headers)) {
             config.headers.forEach(function(header) {
                 if(header.name ==="Content-Type"){
@@ -56,26 +55,20 @@ ozpIwc.util.ajax = function (config) {
          * */
 
         request.onload = function () {
-            try {
-                resolve({
-                    "response": JSON.parse(this.responseText),
-                    "header":  ozpIwc.util.ajaxResponseHeaderToJSON(this.getAllResponseHeaders())
-                });
-            }
-            catch (e) {
-                if(this.status === 200 && this.responseXML){
-                    resolve({
-                        "response": this.responseXML,
-                        "header":  ozpIwc.util.ajaxResponseHeaderToJSON(this.getAllResponseHeaders())
-                    });
-                } else if(this.status === 204 && !this.responseText) {
-                    resolve({
-                        "response": {},
-                        "header": ozpIwc.util.ajaxResponseHeaderToJSON(this.getAllResponseHeaders())
-                    });
-                }  else {
-                    reject(this);
+            if(Math.floor(this.status/100) === 2) {
+                var entity;
+                try {
+                    entity=JSON.parse(this.responseText);
+                } catch(e) {
+                        entity=this.reponseText || this.responseXML;
                 }
+                resolve({
+                    "response": entity,
+                    "header":  ozpIwc.util.ajaxResponseHeaderToJSON(this.getAllResponseHeaders())
+
+                });
+            } else {
+                reject(this);
             }
         };
 

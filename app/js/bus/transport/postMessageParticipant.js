@@ -37,7 +37,7 @@ ozpIwc.PostMessageParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(con
 
     /**
      * @property credentials
-     * @type
+     * @type {Object}
      */
     this.credentials=config.credentials;
 
@@ -165,9 +165,9 @@ ozpIwc.PostMessageParticipantListener=function(config) {
 
 	var self=this;
 
-	window.addEventListener("message", function(event) {
+	ozpIwc.util.addEventListener("message", function(event) {
 		self.receiveFromPostMessage(event);
-	}, false);
+	});
 
     ozpIwc.metrics.gauge('transport.postMessageListener.participants').set(function() {
         return self.getParticipantCount();

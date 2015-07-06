@@ -1,0 +1,99 @@
+There are at least two use cases for having synchronized APIs.
+
+# Server to Bus Sync
+
+Another system writes a value to the data API for a user.  If that user is
+connected, the value gets pushed directly to them, live.  This would be useful
+for notification and live-updates.
+
+Uses:
+* Multiple Devices -- When the user is connected via multiple browsers or devices, each of which acts "another system".  This gives them live updates.
+* Collaboration -- If the backend allows two users to share data, this feature acts to distribute data between the users.
+* System Notifications -- Lets live notifications be pushed to the user via the data api.  
+* Streaming data -- for some (future) APIs, data may be changing over time.  E.g. stock prices, weather.
+
+# Bus to Bus Sync
+Applications exist across two different OZP busses.  For example, an internal bus run by 
+an organization within the firewall that connects to a global, internet-wide bus.  In this
+case each bus will have its own api instances.  The data API illustrates this, best.
+
+Uses:
+* Applications on either bus should be able to interact with each other.
+* An application connecting to the internal bus should also have access to the global bus.
+* The global data API may not have authority to see all of the internal data API's data.
+
+# Synchronization Approaches
+
+All approaches assume a "synchronizer" that handles the transport of data to and from 
+the remote API instance. In all examples:
+* The "local" network and "local" API are where the operations are taking place.
+* The "remote" API is an instantiation of that API running outside of the "local" bus.
+  * E.g. the server's data API endpoints or a "global" bus's "data.api".
+
+This synchronizer can talk to the APIs via the public interface or by direct integration.  
+Each approach has pros and cons.
+
+### API Watch Approach
+The synchronizer:
+* Is a participant-- just another address on the bus.
+* Sends "watch" packets to watch for resource changes.
+  * Probably requires an action to globally watch resources, rather than watching each individually.
+* Sends "set" packets to update resources.
+
+Pros:
+* Simple.  Requires very little change to the APIs, handles multiple synchronizers, etc.
+* Secure.  Since the synchronizer is a participant, all existing security applies.
+* Location independent.  The synchronizer and API do not have to run within the same peer.
+
+Cons:
+* Potentially large increase in network traffic.
+* Slower.  There are quite a few asynchronous calls in the chain.
+* Potential feedback loop of traffic and latency.  The slower sync widens the window for conflict, which potentially causes more traffic for conflict resolution, which creates more latency...
+* Does the public interface provide enough info for meaningful conflict resolution?
+
+### Direct API Integration Approach
+The synchronizer:
+* Runs in the same peer as the API leader.
+* Listens for "changed" events on the API indicating that a node changed value.
+* Directly calls a function on the API when a node changes value.
+
+Pros:
+* Faster.  Far fewer async operations in the chain and less network traffic.
+* Less conflict.  Tightens the window for conflicts to occur, hopefully reducing.
+* Tighter integration allows for the API to have more specific rules about conflict resolution.
+
+Cons:
+* More implementation.  There's less code in place to handle this method.
+  * To Do: API fires the node change event, but does not authorize recipients.
+  * To Do: Function on the API to accept a sync node (reuse deserializeNode?)
+* Synchronizer and api must run in the same peer.
+
+
+#Conflict Resolution
+In the long-term, add a `deconflictStrategy` (or a shorter name) field to the packet 
+and resource that describes how to resolve conflicts and the contents of the version
+field.
+
+Examples:
+  * **vectorClock** -- Version field is a vector clock to be used in deconfliction.
+  * **newest** -- Version field is a timestamp.  Greatest value wins.
+
+# Recommendations
+
+* For server-to-bus sync, use direct API integration.
+* For bus-to-bus, consider the API Watch approach.
+
+Use lazy conflict resolution.
+* At startup, all API instances exchange an index of resources.
+* Mark any resource that exists in multiple locations as "conflicted", but do not resolve the conflict.
+* Upon the read of a resource that is conflicted:
+  * If possible, resolve via the `deconflictStrategy` and `version` fields.
+  * Otherwise, the API that received the request has the winning resource.
+  * All other API instance should converge on that one. 
+* Upon the write of a resource that is conflicted:
+  * Resolve local conflicts.
+  * Reply to the writer after all instances confirm the sync.
+* Whenever an API receives a change notice from another API:
+  * Resolve preconditions (e.g. ifETag header)
+  * Set value and remove the "conflicted" flag.
+

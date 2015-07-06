@@ -14,12 +14,14 @@ var ozpIwc=ozpIwc || {};
  * @todo accept a list of peer URLs that are searched in order of preference
  * @param {Object} config
  * @param {String} config.peerUrl - Base URL of the peer server
+ * @param {Object} config.params - Parameters that will be passed to the bus.
+ * @param {String} config.params.log - The IWC bus logging level.  One of "NONE","DEFAULT","ERROR","INFO","DEBUG", or "ALL"
  * @param {Boolean} [config.autoConnect=true] - Whether to automatically find and connect to a peer
  */
 ozpIwc.Client=function(config) {
     config=config || {};
 
-    window.addEventListener('beforeunload',this.disconnect);
+    ozpIwc.util.addEventListener('beforeunload',this.disconnect);
     this.genPeerUrlCheck(config.peerUrl);
     ozpIwc.ApiPromiseMixin(this,config.autoConnect);
 };
@@ -70,7 +72,7 @@ ozpIwc.Client.prototype.disconnect=function() {
         this.iframe.src = "about:blank";
         var self = this;
         window.setTimeout(function(){
-            document.body.removeChild(self.iframe);
+            self.iframe.remove();
             self.iframe = null;
         },0);
     }
@@ -103,8 +105,7 @@ ozpIwc.Client.prototype.connect=function() {
             return self.createIframePeer();
         }).then(function() {
             // start listening to the bus and ask for an address
-            // receive postmessage events
-            window.addEventListener("message", function (event) {
+            self.postMessageHandler = function (event) {
                 if (event.origin !== self.peerOrigin) {
                     return;
                 }
@@ -120,17 +121,20 @@ ozpIwc.Client.prototype.connect=function() {
                 } catch (e) {
                     // ignore!
                 }
-            }, false);
+            };
+            // receive postmessage events
+            ozpIwc.util.addEventListener("message", self.postMessageHandler);
             return self.send({dst: "$transport"});
         }).then(function(message) {
             self.address = message.dst;
+
             /**
              * Fired when the client receives its address.
              * @event #gotAddress
              */
             self.events.trigger("gotAddress", self);
-            self.events.trigger("connectedToRouter", self);
-            self.events.trigger("connected");
+
+            return self.afterConnected();
         });
     }
     return this.connectPromise;
@@ -149,7 +153,11 @@ ozpIwc.Client.prototype.createIframePeer=function() {
             self.iframe.addEventListener("load",function() {
                 resolve();
             });
-            self.iframe.src=self.peerUrl+"/iframe_peer.html";
+						var url=self.peerUrl+"/iframe_peer.html";
+						if(self.launchParams.log) {
+							url+="?log="+self.launchParams.log;
+						}
+            self.iframe.src=url;
             self.iframe.height=1;
             self.iframe.width=1;
             self.iframe.setAttribute("area-hidden",true);
@@ -164,11 +172,10 @@ ozpIwc.Client.prototype.createIframePeer=function() {
         if(document.readyState === 'complete' ) {
             createIframeShim();
         } else {
-            window.addEventListener("load",createIframeShim,false);
+            ozpIwc.util.addEventListener("load",createIframeShim);
         }
     });
 };
-
 
 ozpIwc.Client.prototype.sendImpl = function(packet){
     ozpIwc.util.safePostMessage(this.peer, packet, '*');

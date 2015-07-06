@@ -21,6 +21,97 @@ ozpIwc.util.now=function() {
 };
 
 /**
+ * Applies the template using the supplied object for values
+ *
+ * @method resolveUriTemplate
+ * @param {string} template The template to use
+ * @param {Object} obj The object to get template paramters from
+ * @param {Object} fallback A secondary object for parameters not contained by the first
+ * @returns {Number}
+ */
+ozpIwc.util.resolveUriTemplate=function(template,obj,fallback) {
+	var converters={
+		"+": function(a) { return a;},
+		"": function(a) { return encodeURIComponent(a);}
+	};
+	var t=template.replace(/\{([\+\#\.\/\;\?\&]?)(.+?)\}/g,function(match,type,name) {
+			return converters[type](obj[name] || fallback[name]);
+		});
+	// look for the :// of the protocol
+	var protocolOffset=t.indexOf("://");
+	// if we found it, set the offset to the end.  otherwise, leave it
+	// at -1 so that a leading "//" will be replaced, below
+	if(protocolOffset >0) { protocolOffset+=3; }
+	
+	// remove double // that show up after the protocolOffset
+	return t.replace(/\/\//g,function(m,offset){
+			// only swap it after the protocol
+			if(offset > protocolOffset) {
+				return "/";
+			} else {
+				return m;
+			}
+		});
+};
+
+/**
+ * A record of event listeners used in the given IWC context. Grouped by type.
+ *
+ * @property eventListeners
+ * @static
+ * @type {Object}
+ */
+ozpIwc.util.eventListeners={};
+
+/**
+ * Adds an event listener to the window and stores its listener in ozpIwc.util.eventListeners.
+ *
+ * @method addEventListener
+ * @param {String} type the event to listen to
+ * @param {Function} listener the callback to be used upon the event being emitted
+ */
+ozpIwc.util.addEventListener=function(type,listener) {
+    var l=ozpIwc.util.eventListeners[type];
+    if(!l) {
+        l=ozpIwc.util.eventListeners[type]=[];
+    }
+    l.push(listener);
+    window.addEventListener(type,listener);
+};
+
+/**
+ * Removes an event listener from the window and from ozpIwc.util.eventListeners
+ * @param {String} type the event to remove the listener from
+ * @param {Function} listener the callback to unregister
+ */
+ozpIwc.util.removeEventListener=function(type,listener) {
+    var l=ozpIwc.util.eventListeners[type];
+    if(l) {
+        ozpIwc.util.eventListeners[type]=l.filter(function(v) { return v!==listener;});
+    }
+    window.removeEventListener(type,listener);
+};
+
+/**
+ * Removes all event listeners registered in ozpIwc.util.eventListeners
+ * @param {String} type the event to remove the listener from
+ * @param {Function} listener the callback to unregister
+ * @param {Boolean} [useCapture] if true all events of the specified type will be dispatched to the registered listener
+ *                             before being dispatched to any EventTarget beneath it in the DOM tree. Events which
+ *                             are bubbling upward through the tree will not trigger a listener designated to use
+ *                             capture.
+ */
+ozpIwc.util.purgeEventListeners=function() {
+    ozpIwc.object.eachEntry(ozpIwc.util.eventListeners,function(type,listenerList) {
+        listenerList.forEach(function(listener) {
+            window.removeEventListener(type,listener);
+        });
+    });
+    ozpIwc.util.eventListeners={};
+};
+
+
+/**
  * Create a class with the given parent in it's prototype chain.
  *
  * @method extend
@@ -310,7 +401,7 @@ ozpIwc.util.getInternetExplorerVersion= function() {
     if (navigator.appName === 'Microsoft Internet Explorer')
     {
         var ua = navigator.userAgent;
-        var re  = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+        var re  = /MSIE ([0-9]{1,}[\.0-9]{0,})/;
         if (re.exec(ua) !== null) {
             rv = parseFloat(RegExp.$1);
         }

@@ -21,12 +21,12 @@ ozpIwc.CommonApiBase = function(config) {
      * @default {}
      */
     this.participant=config.participant;
-    this.participant.on("unloadState",this.unloadState,this);
     this.participant.on("receiveApiPacket",this.routePacket,this);
     this.participant.on("becameLeaderEvent", this.becameLeader,this);
     this.participant.on("newLeaderEvent", this.newLeader,this);
     this.participant.on("startElection", this.startElection,this);
     this.participant.on("receiveEventChannelPacket",this.routeEventChannel,this);
+    this.participant.on("receivedState", this.receiveState,this);
    /**
     * An events module for the API.
     * @property events
@@ -73,6 +73,11 @@ ozpIwc.CommonApiBase = function(config) {
 
     this.endpointUrls=[];
 };
+ozpIwc.CommonApiBase.prototype.receiveState = function (state) {
+    state = state || this.participant.stateStore;
+    this.setState(state);
+};
+
 
 /**
  * Finds or creates the corresponding node to store a server loaded resource.
@@ -521,6 +526,11 @@ ozpIwc.CommonApiBase.prototype.isPermitted=function(packetContext,node) {
  * @param {Object} changes The changes to the node.
  */
 ozpIwc.CommonApiBase.prototype.notifyWatchers=function(node,changes) {
+
+    if(!this.participant.activeStates.leader)	{
+        // if not leader, just drop it.
+        return;
+    }
     if(!changes) {
         return;
     }
@@ -590,6 +600,15 @@ ozpIwc.CommonApiBase.prototype.createKey=function(prefix) {
     return key;
 };
 
+
+/**
+ * Returns true if this API instance is a leader.
+ * @method isLeader
+ * @returns {Boolean}
+ */
+ozpIwc.CommonApiBase.prototype.isLeader=function(){
+    return this.participant.activeStates.leader;
+};
 /**
  * Route a packet to the appropriate handler.  The routing path is based upon
  * the action and whether a resource is defined. If the handler does not exist, it is routed
@@ -628,17 +647,16 @@ ozpIwc.CommonApiBase.prototype.routePacket=function(packetContext) {
             if(!e.errorAction) {
                 ozpIwc.log.error("Unexpected error:",e);
             }
-            packetContext.replyTo({
-                'response': e.errorAction || "unknownError",
-                'entity': e.message
-            });
-            return;
+
+            // If not the leader, don't reply.
+            if(self.isLeader()) {
+                packetContext.replyTo({
+                    'response': e.errorAction || "unknownError",
+                    'entity': e.message
+                });
+            }
         }
     };
-    if(packetContext.leaderState !== 'leader' && packetContext.leaderState !== 'actingLeader'  )	{
-        // if not leader, just drop it.
-        return;
-    }
 
     if(packet.response && !packet.action) {
         //TODO create a metric for this instead of logging to console
@@ -681,9 +699,6 @@ ozpIwc.CommonApiBase.prototype.routePacket=function(packetContext) {
  * @param {ozpIwc.TransportPacketContext} packetContext
  */
 ozpIwc.CommonApiBase.prototype.routeEventChannel = function(packetContext) {
-    if (!this.participant.activeStates.leader) {
-        return;
-    }
     var packet = packetContext.packet;
     switch (packet.action) {
         case "connect":
@@ -881,7 +896,9 @@ ozpIwc.CommonApiBase.prototype.defaultHandler=function(node,packetContext) {
  * @param {ozpIwc.TransportPacketContext} packetContext The packet context containing the get action.
  */
 ozpIwc.CommonApiBase.prototype.handleGet=function(node,packetContext) {
-    packetContext.replyTo(node.toPacket({'response': 'ok'}));
+    if(this.isLeader()) {
+        packetContext.replyTo(node.toPacket({'response': 'ok'}));
+    }
 };
 
 /**
@@ -892,22 +909,24 @@ ozpIwc.CommonApiBase.prototype.handleGet=function(node,packetContext) {
  * @param {ozpIwc.TransportPacketContext} packetContext The packet context containing the bulk get action.
  */
 ozpIwc.CommonApiBase.prototype.handleBulkget=function(node,packetContext) {
-	// scan local data set for resource link(?) contains prefix
-	// return list of nodes of matches
-	var matchingNodes = [];
-	
-	if (this.data !== {}) {
-		for (var i in this.data) {
-			if (this.data[i].resource.indexOf(packetContext.packet.resource) === 0) {
-				matchingNodes.push(this.data[i].toPacket());
-			}
-		}
-	}
-	
-	packetContext.replyTo({
-		'response': 'ok',
-		'entity': matchingNodes
-	});
+    if(this.isLeader()) {
+        // scan local data set for resource link(?) contains prefix
+        // return list of nodes of matches
+        var matchingNodes = [];
+
+        if (this.data !== {}) {
+            for (var i in this.data) {
+                if (this.data[i].resource.indexOf(packetContext.packet.resource) === 0) {
+                    matchingNodes.push(this.data[i].toPacket());
+                }
+            }
+        }
+
+        packetContext.replyTo({
+            'response': 'ok',
+            'entity': matchingNodes
+        });
+    }
 };
 
 /**
@@ -919,7 +938,9 @@ ozpIwc.CommonApiBase.prototype.handleBulkget=function(node,packetContext) {
  */
 ozpIwc.CommonApiBase.prototype.handleSet=function(node,packetContext) {
     node.set(packetContext.packet);
-    packetContext.replyTo({'response':'ok'});
+    if(this.isLeader()) {
+        packetContext.replyTo({'response': 'ok'});
+    }
 };
 
 /**
@@ -932,7 +953,9 @@ ozpIwc.CommonApiBase.prototype.handleSet=function(node,packetContext) {
  */
 ozpIwc.CommonApiBase.prototype.handleDelete=function(node,packetContext) {
     node.deleteData();
-    packetContext.replyTo({'response':'ok'});
+    if(this.isLeader()) {
+        packetContext.replyTo({'response': 'ok'});
+    }
 };
 
 /**
@@ -944,9 +967,10 @@ ozpIwc.CommonApiBase.prototype.handleDelete=function(node,packetContext) {
  */
 ozpIwc.CommonApiBase.prototype.handleWatch=function(node,packetContext) {
     node.watch(packetContext.packet);
-
-    // @TODO: Reply with the entity? Immediately send a change notice to the new watcher?
-    packetContext.replyTo({'response': 'ok'});
+    if(this.isLeader()) {
+        // @TODO: Reply with the entity? Immediately send a change notice to the new watcher?
+        packetContext.replyTo({'response': 'ok'});
+    }
 };
 
 /**
@@ -958,8 +982,9 @@ ozpIwc.CommonApiBase.prototype.handleWatch=function(node,packetContext) {
  */
 ozpIwc.CommonApiBase.prototype.handleUnwatch=function(node,packetContext) {
     node.unwatch(packetContext.packet);
-
-    packetContext.replyTo({'response':'ok'});
+    if(this.isLeader()) {
+        packetContext.replyTo({'response': 'ok'});
+    }
 };
 
 /**
@@ -969,8 +994,7 @@ ozpIwc.CommonApiBase.prototype.handleUnwatch=function(node,packetContext) {
  * @method unloadState
  */
 ozpIwc.CommonApiBase.prototype.unloadState = function(){
-    if(this.participant.activeStates.leader) {
-
+    if(this.isLeader()) {
         var serializedData = {};
         for(var  i in this.data){
             serializedData[i] = this.data[i].serialize();
@@ -979,7 +1003,6 @@ ozpIwc.CommonApiBase.prototype.unloadState = function(){
             data: serializedData,
             dynamicNodes: this.dynamicNodes
         }, previousLeader: this.participant.address});
-
         this.data = {};
     } else {
         this.participant.sendElectionMessage("election");
@@ -995,7 +1018,7 @@ ozpIwc.CommonApiBase.prototype.unloadState = function(){
  */
 ozpIwc.CommonApiBase.prototype.setState = function(state) {
     this.data = {};
-    this.dynamicNodes = state.dynamicNodes;
+    this.dynamicNodes = state.dynamicNodes || [];
     for (var key in state.data) {
         var dynIndex = this.dynamicNodes.indexOf(key);
         var node;
@@ -1027,10 +1050,12 @@ ozpIwc.CommonApiBase.prototype.setState = function(state) {
  * @param {ozpIwc.TransportPacketContext} packetContext The packet context of the received request.
  */
 ozpIwc.CommonApiBase.prototype.rootHandleList=function(node,packetContext) {
-    packetContext.replyTo({
-        'response':'ok',
-        'entity': Object.keys(this.data)
-    });
+    if(this.isLeader()) {
+        packetContext.replyTo({
+            'response': 'ok',
+            'entity': Object.keys(this.data)
+        });
+    }
 };
 
 /**
@@ -1039,7 +1064,7 @@ ozpIwc.CommonApiBase.prototype.rootHandleList=function(node,packetContext) {
  * @method startElection
  */
 ozpIwc.CommonApiBase.prototype.startElection = function(){
-    if (this.participant.activeStates.leader) {
+    if (this.isLeader()) {
         this.participant.changeState("actingLeader");
     } else if(this.participant.leaderState === "leaderSync") {
         // do nothing.
@@ -1137,25 +1162,14 @@ ozpIwc.CommonApiBase.prototype.leaderSync = function () {
             // There was a previous leader but we haven't seen their state. Wait for it.
             self.receiveStateTimer = null;
 
-            var recvFunc = function () {
-                self.setState(self.participant.stateStore);
-                self.participant.off("receivedState", recvFunc);
-                self.setToLeader();
-                window.clearInterval(self.receiveStateTimer);
-                self.receiveStateTimer = null;
-            };
-
-            self.participant.on("receivedState", recvFunc);
-
             self.receiveStateTimer = window.setTimeout(function () {
                 if (self.participant.stateStore && Object.keys(self.participant.stateStore).length > 0) {
-                    recvFunc();
+                    self.receiveState(self.participant.stateStore);
                 } else {
                     self.loadFromServer();
                     ozpIwc.log.debug(self.participant.name, "New leader(",self.participant.address, ") failed to retrieve state from previous leader(", self.participant.previousLeader, "), so is loading data from server.");
                 }
 
-                self.participant.off("receivedState", recvFunc);
                 self.setToLeader();
             }, 250);
 

@@ -34,6 +34,7 @@ describe("Client",function() {
             client=new ozpIwc.Client({peerUrl:"http://" + window.location.hostname + ":13000"});
         });
         afterEach(function() {
+            client.disconnect();
             client=null;
         });
 

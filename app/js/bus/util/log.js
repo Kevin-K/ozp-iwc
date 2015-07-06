@@ -16,12 +16,30 @@ var getStackTrace = function() {
  */
 ozpIwc.log=ozpIwc.log || {
     // syslog levels
+    NONE: { logLevel: true, severity: 0, name: "NONE"},
+    DEFAULT: { logLevel: true, severity: 1, name: "DEFAULT"},
     ERROR: { logLevel: true, severity: 3, name: "ERROR"},
     INFO: { logLevel: true, severity: 6, name: "INFO"},
     DEBUG: { logLevel: true, severity: 7, name: "DEBUG"},
-    DEFAULT: { logLevel: true, severity: 0, name: "DEFAULT"},
+    ALL: { logLevel: true, severity: 10, name: "ALL"},
     
     threshold: 3,
+
+    /**
+     * Sets the threshold for the IWC's logger.
+     * @method setThreshold
+     * @param {Number|Object} level
+     * @param {Number} [level.severity]
+     */
+    setThreshold: function(level) {
+        if(typeof(level)==="number") {
+            ozpIwc.log.threshold=level;
+        } else if(typeof(level.severity) === "number") {
+            ozpIwc.log.threshold=level.severity;
+        } else {
+            throw new TypeError("Threshold must be a number or one of the ozpIwc.log constants.  Instead got" + level);
+        }
+    },
     
     /**
      * A wrapper for log messages. Forwards to console.log if available.
@@ -36,25 +54,40 @@ ozpIwc.log=ozpIwc.log || {
         }
 	},
 
+    /**
+     * Logs the given message if the severity is above the threshold.
+     * @method logMsg
+     * @param {Number} level
+     * @param {Arguments} args
+     */
     logMsg: function(level,args) {
         if(level.severity > ozpIwc.log.threshold) {
             return;
         }
 
-        var console = window.console;
         // if no console, no logs.
-        if(!console){
+        if(!console || !console.log){
             return;
         }
-
-        var original = console.log;
-        if(original.apply){
-            original.apply(console,["["+level.name+"] "].concat(args));
-        } else {
-            // IE does not have apply on console functions
-            var msg = ["["+level.name+"]"].concat(args).join(' ');
-            original(msg);
-        }
+        
+        var msg=args.reduce(function(acc, val) {
+            if(val instanceof Error) {
+                return acc + val.toString() + (val.stack?(" -- " +val.stack):""); //"[" + val.name + ":" + val.message;
+            }else if(typeof(val) === "object") {
+                return acc + JSON.stringify(val,null,2);
+            }
+            return acc + val;
+        },"["+level.name+"] ");
+        
+        console.log(msg);
+//        var original = console.log;
+//        if(original.apply){
+//            original.apply(console,["["+level.name+"] "].concat(args));
+//        } else {
+//            // IE does not have apply on console functions
+//            var msg = ["["+level.name+"]"].concat(args).join(' ');
+//            original(msg);
+//        }
     },
     
     /**

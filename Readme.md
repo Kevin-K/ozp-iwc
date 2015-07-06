@@ -16,7 +16,7 @@ To Build
 7.  npm install
 8.  npm install -g bower
 9.  bower install
-10. grunt test
+10. grunt connect-all
 11. Browse to http://localhost:14000 for an index of samples and tests!
 
 Demo

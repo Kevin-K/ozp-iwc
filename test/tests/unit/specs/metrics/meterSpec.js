@@ -20,7 +20,7 @@ describe("Metrics: Meter",function() {
 	it("calculates a reasonable one minute rate",function() {
 		var step=0.1;
 		for(var i=0;i<60;i+=step) {
-			tick(1000 * step);
+			ozpIwc.testUtil.tick(1000 * step);
 			meter.mark(1000 * step);
 		}
 		// 60000/60 seconds = 1000/sec 

@@ -11,10 +11,10 @@ ozpIwc.test.MockParticipant=function(config) {
     
     var self=this;
     // set up the side-band channel to the window.
-   	this.messageEventListener=window.addEventListener("message", function(event) {
+   	this.messageEventListener=ozpIwc.util.addEventListener("message", function(event) {
 //        console.log("mockparticipant received: ",event.data);
        self.postMessageHandler.apply(self,arguments);
-    }, false);
+    });
     
     this.iframe = document.createElement("iframe");
     this.iframe.src = this.clientUrl;
@@ -26,7 +26,7 @@ ozpIwc.test.MockParticipant=function(config) {
 };
 
 ozpIwc.test.MockParticipant.prototype.close=function() {
-    window.removeEventListener("message",this.messageEventListener,false);
+    ozpIwc.util.removeEventListener("message",this.messageEventListener,false);
     document.body.removeChild(this.iframe);
 };     
 

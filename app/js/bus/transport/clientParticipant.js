@@ -27,6 +27,13 @@ ozpIwc.ClientParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config) 
     this.participantType="internalClient";
 
     /**
+     * Notes if this is a client participant internal to the bus.
+     * @property internal
+     * @type {Boolean}
+     * @default false
+     */
+    this.internal = config.internal || false;
+    /**
      * The name of the participant.
      * @property name
      * @type {String}
@@ -34,6 +41,12 @@ ozpIwc.ClientParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config) 
      */
     this.name=config.name;
 
+    /**
+     * The router to connect to.
+     * @property router
+     * @type {*|ozpIwc.defaultRouter}
+     */
+    this.router=config.router || ozpIwc.defaultRouter;
     var self = this;
     this.on("connectedToRouter",function() {
         self.permissions.pushIfNotExist('ozp:iwc:address', self.address);
@@ -62,14 +75,17 @@ ozpIwc.ClientParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config) 
 ozpIwc.ClientParticipant.prototype.connect = function(){
 
     if(!this.connectPromise) {
-        var self=this;
+        var self = this;
         /**
          * Promise to chain off of for client connection asynchronous actions.
          * @property connectPromise
+         *
          * @type Promise
          */
-        this.connectPromise = new Promise(function(resolve,rejectf){
-            resolve(ozpIwc.defaultRouter.registerParticipant(self));
+        this.connectPromise = new Promise(function(resolve,reject){
+            resolve(self.router.registerParticipant(self));
+        }).then(function(addr){
+            return self.afterConnected(addr);
         });
     }
 

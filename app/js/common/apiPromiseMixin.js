@@ -40,36 +40,12 @@ ozpIwc.ApiPromiseMixin=function(participant,autoConnect) {
 };
 
 /**
- * Registers event listeners for the participant.  Listens for the following events: connectedToRouter, disconnect.
+ * Registers event listeners for the participant.  Listens for the following events: disconnect.
  * @method registerEvents
  * @static
  * @param {ozpIwc.Participant} participant
  */
 ozpIwc.ApiPromiseMixin.registerEvents = function(participant){
-    participant.on("connectedToRouter", function(){
-        // dump any queued sends, trigger that we are fully connected
-        participant.preconnectionQueue.forEach(function (p) {
-            participant.send(p.fields, p.callback, p.promiseRes, p.promiseRej);
-        });
-        participant.preconnectionQueue = [];
-        if (!participant.launchParams.inFlightIntent) {
-            return;
-        }
-
-        // fetch the inFlightIntent
-        participant.intents().get(participant.launchParams.inFlightIntent).then(function (response) {
-            if (response && response.entity && response.entity.intent) {
-                participant.launchedIntents.push(response);
-                if (response.response === 'ok') {
-                    for (var k in response.entity) {
-                        participant.launchParams[k] = response.entity[k];
-                    }
-                }
-            }
-            participant.events.trigger("connected");
-        });
-    });
-
     participant.on("disconnect",function(){
         participant.promiseCallbacks={};
         participant.registeredCallbacks={};
@@ -253,23 +229,21 @@ ozpIwc.ApiPromiseMixin.getCore = function() {
 
             //Try and handle this packet as callback message
             if (!handled && packet.replyTo && this.registeredCallbacks[packet.replyTo]) {
-                handled = true;
 
                 var registeredCancel = false;
                 var registeredDone = function () {
                     registeredCancel = true;
                 };
 
-                this.registeredCallbacks[packet.replyTo](packet, registeredDone);
+                handled = this.registeredCallbacks[packet.replyTo](packet, registeredDone);
                 if (registeredCancel) {
-                    if (this.watchMsgMap[packet.replyTo].action === "watch") {
+                    if (this.watchMsgMap[packet.replyTo] && this.watchMsgMap[packet.replyTo].action === "watch") {
                         this.api(this.watchMsgMap[packet.replyTo].dst).unwatch(this.watchMsgMap[packet.replyTo].resource);
                     }
                     this.cancelRegisteredCallback(packet.replyTo);
                 }
-            } else if (packet.dst === "$bus.multicast"){
-                this.events.trigger("receiveEventChannelPacket",packetContext);
-            } else {
+            }
+            if(!handled){
                 // Otherwise trigger "receive" for someone to handle it
                 this.events.trigger("receive",packetContext);
             }
@@ -417,40 +391,63 @@ ozpIwc.ApiPromiseMixin.getCore = function() {
          * @param callback {Function} The intent handler's callback function
          * @returns {Promise}
          */
-        intentInvocationHandling: function (resource, intentResource, callback) {
+        intentInvocationHandling: function (resource, intentResource, intentEntity, callback) {
             var self = this;
             var res;
-            return self.send({
-                dst: "intents.api",
-                action: "get",
-                resource: intentResource
-            }).then(function (response) {
-                response.entity.handler = {
-                    address: self.address,
-                    resource: resource
-                };
-                response.entity.state = "running";
+            var promiseChain;
+            callback = callback || function(){};
 
+            if(intentEntity) {
+                promiseChain = Promise.resolve(intentEntity);
+            } else {
+                promiseChain = self.send({
+                    dst: "intents.api",
+                    action: "get",
+                    resource: intentResource
+                }).then(function(reply){
+                    return reply.entity;
+                });
+            }
+            return promiseChain.then(function(response) {
                 res = response;
                 return self.send({
                     dst: "intents.api",
                     contentType: response.contentType,
                     action: "set",
                     resource: intentResource,
-                    entity: response.entity
+                    entity: {
+                        handler: {
+                            resource: resource,
+                            address: self.address
+                        },
+                        state: "running"
+                    }
                 });
-            }).then(function (reply) {
-                //Now run the intent
-                res.entity.reply.entity = callback(res.entity) || {};
-                // then respond to the inflight resource
-                res.entity.state = "complete";
-                res.entity.reply.contentType = res.entity.intent.type;
+            }).then(function(){
+                // Run the intent handler. Wrapped in a promise chain in case the callback itself is async.
+                return callback(res);
+            }).then(function (result) {
+
+                // Respond to the inflight resource
                 return self.send({
                     dst: "intents.api",
                     contentType: res.contentType,
                     action: "set",
                     resource: intentResource,
-                    entity: res.entity
+                    entity: {
+                        reply: {
+                            'entity': result || {},
+                            'contentType': res.intent.type
+                        },
+                        state: "complete"
+                    }
+                });
+            })['catch'](function(e){
+                console.log("Error in handling intent: ", e, " -- Clearing in-flight intent node:", intentResource);
+                self.send({
+                    dst: "intents.api",
+                    resource: intentResource,
+                    action: "delete"
                 });
             });
         },
@@ -569,11 +566,17 @@ ozpIwc.ApiPromiseMixin.getCore = function() {
 
             if (callback) {
                 this.registeredCallbacks[id] = function (reply, done) {
-                    if (reply.entity && reply.entity.inFlightIntent) {
-                        self.intentInvocationHandling(packet.resource, reply.entity.inFlightIntent, callback);
+                    // We've received a message that was a promise response but we've aready handled our promise response.
+                    if (reply.src === "$transport" || /(ok).*/.test(reply.response) || /(bad|no).*/.test(reply.response)) {
+                        // Do noting and let it get sent to the event handler
+                        return false;
+                    }else if (reply.entity && reply.entity.inFlightIntent) {
+                        self.intentInvocationHandling(packet.resource, reply.entity.inFlightIntent,
+                            reply.entity.inFlightIntentEntity, callback);
                     } else {
                         callback(reply, done);
                     }
+                    return true;
                 };
             }
 
@@ -599,6 +602,47 @@ ozpIwc.ApiPromiseMixin.getCore = function() {
                 this.cancelRegisteredCallback(packet.replyTo);
             }
             return promise;
+        },
+
+        /**
+         * Generic handler for a bus connection to handle any queued messages & launch data after its connected.
+         * @method afterConnected
+         * @returns {Promise}
+         */
+        afterConnected: function(){
+            var self = this;
+            // dump any queued sends, trigger that we are fully connected
+            self.preconnectionQueue.forEach(function (p) {
+                self.send(p.fields, p.callback, p.promiseRes, p.promiseRej);
+            });
+            self.preconnectionQueue = [];
+            if (!self.launchParams.inFlightIntent || self.internal) {
+                self.events.trigger("connected");
+                return Promise.resolve();
+            }
+
+            // fetch the inFlightIntent
+            return self.intents().get(self.launchParams.inFlightIntent).then(function (response) {
+                // If there is an inflight intent that has not already been handled (i.e. page refresh driving to here)
+                if (response && response.entity && response.entity.intent) {
+                    self.launchedIntents.push(response);
+                    var launchData = response.entity.entity || {};
+                    if (response.response === 'ok') {
+                        for (var k in launchData) {
+                            self.launchParams[k] = launchData[k];
+                        }
+                    }
+                    self.intents().set(self.launchParams.inFlightIntent, {
+                        entity: {
+                            state: "complete"
+                        }
+                    });
+                }
+                self.events.trigger("connected");
+            })['catch'](function(e){
+                console.log(self.launchParams.inFlightIntent, " not handled, reason: ", e);
+                self.events.trigger("connected");
+            });
         }
 
     };

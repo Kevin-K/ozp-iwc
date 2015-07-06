@@ -1,6 +1,4 @@
 /**
- * Classes related to transport aspects of the IWC.
- * @module bus
  * @submodule bus.transport
  */
 
@@ -70,8 +68,6 @@ ozpIwc.InternalParticipant.prototype.getCallbackCount=function() {
  *
  * @method receiveFromRouterImpl
  * @param {ozpIwc.TransportPacketContext} packetContext
- *
- * @returns {boolean} true if this packet could have additional recipients
  */
 ozpIwc.InternalParticipant.prototype.receiveFromRouterImpl=function(packetContext) {
 	var packet=packetContext.packet;

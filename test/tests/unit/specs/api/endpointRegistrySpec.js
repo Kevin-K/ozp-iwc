@@ -1,10 +1,11 @@
 describe("Endpoint Registry",function() {
     var responses={
-        'api': {
+        '/api': {
             '_links': {
                 "data" : {'href':"data/v1"},
                 "intents" : {'href':"intents/v1"},
-                "applications": {'href':"applications/v2"}
+                "applications": {'href':"applications/v2"},
+								"template": {'href':"https://example.com/{foo}", templated:true}
             }
         },
         'foo/bar': { '_links': []}
@@ -12,9 +13,10 @@ describe("Endpoint Registry",function() {
 
     beforeEach(function() {
         spyOn(ozpIwc.util,"ajax").and.callFake(function(config) {
-            return new Promise(function(resolve,reject) {
-               resolve(responses[config.href]|| {}); 
-            });
+					console.log("Returning data for ",config.href,responses[config.href]);
+            return Promise.resolve({
+							response: responses[config.href]
+						}); 
         });
     });
 
@@ -34,26 +36,29 @@ describe("Endpoint Registry",function() {
         expect(e.endpoint("intents")).toBeDefined();
         expect(e.endpoint("applications")).toBeDefined();
     });
-    
+		
+		pit("contains the linked templates",function() {
+        var e=new ozpIwc.EndpointRegistry();
+				return e.loadPromise.then(function() {
+					expect(e.template.template).toEqual("https://example.com/{foo}");
+				});
+    });
+		
     [["data","data/foo/bar","data/foo/bar"],
      ["applications","applications/1/2/3/4","applications/1/2/3/4"],
-     ["data","","data"],
-     ["data","/","data"]
+     ["data","","data/v1"],
+     ["data","/","data/v1"]
     ].forEach(function(d) {
-        it("endpoint " + d[0]+ " gets " +d[1] + " from " + d[2],function(done) {
+        pit("endpoint " + d[0]+ " gets " +d[1] + " from " + d[2],function() {
             var e=new ozpIwc.EndpointRegistry();
 
             var point = e.endpoint(d[0]);
             point.baseUrl = d[0];
-            point.get(d[1]).then(function() {
+            return point.get(d[1]).then(function() {
                 expect(ozpIwc.util.ajax).toHaveBeenCalledWith(jasmine.objectContaining({
                     'href':d[2],
                     'method': "GET"
                 }));
-                done();
-            })['catch'](function(err) {
-                expect(err).toBe("not have occurred");
-                done();
             });
         });
     });

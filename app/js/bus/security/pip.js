@@ -115,3 +115,47 @@ ozpIwc.policyAuth.PIP.prototype.grantParent = function (subjectId,parentId){
         return asyncAction;
     }
 };
+
+/**
+ * For the given attribute name, figure out what the value of that attribute should be 
+ * given the two values.
+ * @TODO Currently, this just promotes the two scalars to a bag
+ *
+ * @method combineAttributeValues
+ * @param {type} attributeName
+ * @param {type} value1
+ * @param {type} value2
+ * @returns {Array}
+ */
+ozpIwc.policyAuth.PIP.prototype.combineAttributeValues=function(attributeName,value1,value2) {
+    return [value1,value2];
+};
+
+/**
+ * Creates an attribute set that's the union of the two given attribute sets
+ *
+ * @method attributeUnion
+ * @param {object} attr1
+ * @param {object} attr2
+ * @returns {object}
+ */
+ozpIwc.policyAuth.PIP.prototype.attributeUnion=function(attr1,attr2) {
+    var rv={};
+    ozpIwc.object.eachEntry(attr1,function(key,value) {
+        if(Array.isArray(value)) {
+            rv[key]=value.slice();
+        } else {
+            rv[key]=value;
+        }
+    });
+    ozpIwc.object.eachEntry(attr2,function(key,value) {
+        if(!(key in rv)) {
+            rv[key]=value;
+        } else if(Array.isArray(rv[key])) {
+            rv[key]=rv[key].concat(value);
+        } else {
+            rv[key]=this.combineAttributeValues(rv[key],value);
+        }
+    },this);
+    return rv;
+};

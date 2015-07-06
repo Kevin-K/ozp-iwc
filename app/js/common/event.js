@@ -65,15 +65,20 @@ ozpIwc.Event.prototype.off=function(event,callback) {
  *
  * @returns {Object} The event after all handlers have processed it.
  */
-ozpIwc.Event.prototype.trigger=function(eventName,event) {
-	event = event || new ozpIwc.CancelableEvent();
+ozpIwc.Event.prototype.trigger=function(eventName) {
+	//if no event data push a new cancelable event
+	var args = Array.prototype.slice.call(arguments,1);
+	if(args.length < 1){
+		args.push(new ozpIwc.CancelableEvent());
+	}
 	var handlers=this.events[eventName] || [];
 
 	handlers.forEach(function(h) {
-		h(event);
+		h.apply(this,args);
 	});
-	return event;
+	return args[0];
 };
+
 
 
 /**

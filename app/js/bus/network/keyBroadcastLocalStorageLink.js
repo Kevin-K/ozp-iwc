@@ -166,11 +166,13 @@ ozpIwc.KeyBroadcastLocalStorageLink = function (config) {
         }
     };
     if(ozpIwc.util.getInternetExplorerVersion() >= 0) {
+        // IE can keep storage events between refreshes.  If we give it a second, it'll
+        // dump all of them on the floor
         window.setTimeout(function () {
-            window.addEventListener('storage', receiveStorageEvent, false);
+            ozpIwc.util.addEventListener('storage', receiveStorageEvent);
         }, 500);
     } else {
-        window.addEventListener('storage', receiveStorageEvent, false);
+        ozpIwc.util.addEventListener('storage', receiveStorageEvent);
     }
 
     this.peer.on("send", function (event) {
@@ -178,7 +180,7 @@ ozpIwc.KeyBroadcastLocalStorageLink = function (config) {
     });
 
     this.peer.on("beforeShutdown", function () {
-        window.removeEventListener('storage', receiveStorageEvent);
+        ozpIwc.util.removeEventListener('storage', receiveStorageEvent);
     }, this);
 
 };

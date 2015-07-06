@@ -1,7 +1,7 @@
 {
   "author": "Ozone Developers",
   "name": "ozpIwc",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "repository": "https://github.com/ozone-development/ozp-iwc",
   "license": {
     "type": "Apache-2.0",
@@ -39,6 +39,6 @@
     "build": "grunt build",
     "tarVersion": "grunt shell:tarVersion",
     "tarDate": "grunt shell:tarDate",
-    "test": "grunt dist"
+    "test": "grunt travis"
   }
 }

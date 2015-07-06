@@ -145,6 +145,14 @@ ozpIwc.EndpointRegistry=function(config) {
      */
     this.endPoints={};
 
+    /**
+     * The collection of uri templates for endpoints.
+     * @property template
+     * @type Object
+     * @default {}
+     */
+    this.template={};
+		
     var self=this;
 
     /**
@@ -163,18 +171,26 @@ ozpIwc.EndpointRegistry=function(config) {
 
         for (var linkEp in payload._links) {
             if (linkEp !== 'self') {
-                var link = payload._links[linkEp].href;
-								if(Array.isArray(payload._links[linkEp])) {
-									link=payload._links[linkEp][0].href;
-								}
-
-                self.endpoint(linkEp).baseUrl = link;
+                var link = payload._links[linkEp];
+                if(Array.isArray(payload._links[linkEp])) {
+                    link=payload._links[linkEp][0].href;
+                }
+                if(link.templated) {
+                    self.template[linkEp]=link.href;
+                } else {
+                    self.endpoint(linkEp).baseUrl = link.href;
+                }
             }
         }
         for (var embEp in payload._embedded) {
             var embLink = payload._embedded[embEp]._links.self.href;
             self.endpoint(embEp).baseUrl = embLink;
         }
+        // UGLY HAX
+        if(!self.template["ozp:data-item"]) {
+            self.template["ozp:data-item"]=self.endpoint("ozp:user-data").baseUrl+"/{+resource}";
+        }
+        //END HUGLY HAX
     })['catch'](function(err){
         ozpIwc.log.debug(Error("Endpoint " + self.apiRoot + " " + err.statusText + ". Status: " +  err.status));
         self.loaded = false;
@@ -207,6 +223,9 @@ ozpIwc.initEndpoints=function(apiRoot) {
     var registry=new ozpIwc.EndpointRegistry({'apiRoot':apiRoot});
     ozpIwc.endpoint=function(name) {
         return registry.endpoint(name);
+    };
+    ozpIwc.uriTemplate=function(name) {
+        return registry.template[name];
     };
 };
 

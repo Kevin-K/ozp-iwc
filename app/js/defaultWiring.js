@@ -1,12 +1,27 @@
 var ozpIwc=ozpIwc || {};
 ozpIwc.version = "0.2";
-ozpIwc.log.threshold = 11;
+ozpIwc.log.threshold = 6;
 ozpIwc.ELECTION_TIMEOUT = 1000;
 ozpIwc.apiRootUrl = ozpIwc.apiRootUrl || "/api";
 ozpIwc.policyRootUrl = ozpIwc.policyRootUrl || "/policy";
 ozpIwc.basicAuthUsername= ozpIwc.basicAuthUsername || '';
 ozpIwc.basicAuthPassword= ozpIwc.basicAuthPassword || '';
 ozpIwc.linkRelPrefix = ozpIwc.linkRelPrefix || "ozp";
+
+ozpIwc.intentsChooserUri = "intentsChooser.html";
+
+(function() {
+	var params=ozpIwc.util.parseQueryParams();
+	if(params.log) {
+		try{
+			console.log("Setting log level to ",params.log);
+			ozpIwc.log.setThreshold(ozpIwc.log[params.log.toUpperCase()]);
+		}catch(e) {
+			// just ignore it and leave the default level
+		}
+	}
+})();
+
 ozpIwc.authorization = new ozpIwc.policyAuth.PDP({
     'pip': new ozpIwc.policyAuth.PIP(),
     'prp': new ozpIwc.policyAuth.PRP(),
@@ -38,43 +53,24 @@ if(typeof ozpIwc.enableDefault === "undefined" || ozpIwc.enableDefault) {
             };
         };
 
-        ozpIwc.namesApi = new ozpIwc.NamesApi({
+        ozpIwc.locksApi = new ozpIwc.LocksApi({
             'participant': new ozpIwc.LeaderGroupParticipant({
-                'name': "names.api",
+                'name': "locks.api",
                 'states': ozpIwc.defaultLeadershipStates(),
-                electionTimeout: ozpIwc.ELECTION_TIMEOUT
-            }),
-            'heartbeatDropCount': 3,
-            'heartbeatFrequency': ozpIwc.heartBeatFrequency
-        });
-        ozpIwc.defaultRouter.registerParticipant(ozpIwc.namesApi.participant);
-
-        ozpIwc.dataApi = new ozpIwc.DataApi({
-            'participant': new ozpIwc.LeaderGroupParticipant({
-                'name': "data.api",
-                'states': ozpIwc.defaultLeadershipStates(),
-                electionTimeout: ozpIwc.ELECTION_TIMEOUT
+                electionTimeout: ozpIwc.ELECTION_TIMEOUT,
+                getStateData: function(){
+                    var foo = {};
+                    foo.data=ozpIwc.locksApi.data;
+                    return foo;
+                }
             })
         });
-        ozpIwc.defaultRouter.registerParticipant(ozpIwc.dataApi.participant);
+        ozpIwc.defaultRouter.registerParticipant(ozpIwc.locksApi.participant);
 
-        ozpIwc.intentsApi = new ozpIwc.IntentsApi({
-            'participant': new ozpIwc.LeaderGroupParticipant({
-                'name': "intents.api",
-                'states': ozpIwc.defaultLeadershipStates(),
-                electionTimeout: ozpIwc.ELECTION_TIMEOUT
-            })
-        });
-        ozpIwc.defaultRouter.registerParticipant(ozpIwc.intentsApi.participant);
-
-        ozpIwc.systemApi = new ozpIwc.SystemApi({
-            'participant': new ozpIwc.LeaderGroupParticipant({
-                'name': "system.api",
-                'states': ozpIwc.defaultLeadershipStates(),
-                electionTimeout: ozpIwc.ELECTION_TIMEOUT
-            })
-        });
-        ozpIwc.defaultRouter.registerParticipant(ozpIwc.systemApi.participant);
+        ozpIwc.namesApi = new ozpIwc.NamesApi({'name': "names.api"});
+        ozpIwc.dataApi = new ozpIwc.DataApi({'name': "data.api"});
+        ozpIwc.intentsApi = new ozpIwc.IntentsApi({'name': "intents.api"});
+        ozpIwc.systemApi = new ozpIwc.SystemApi({'name': "system.api"});
     }
     if (typeof ozpIwc.acceptPostMessageParticipants === "undefined" ||
         ozpIwc.acceptPostMessageParticipants

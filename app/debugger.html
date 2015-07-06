@@ -12,7 +12,7 @@
             ozpIwc.basicAuthUsername=null;
             ozpIwc.basicAuthPassword=null;
             ozpIwc.runApis=true;
-            ozpIwc.acceptPostMessageParticipants=false;
+            ozpIwc.acceptPostMessageParticipants=true;
             
             // for resizing the height of an iframe (hal-browser)
             function resizeIframe(obj) {
@@ -56,7 +56,7 @@
                 <a ui-sref="hal-browser({url: ozpIwc.apiRootUrl})" ui-sref-active="selected">HAL Browser</a>
             </li>
             <hr />
-            <li> {{::client.address}}</li>
+            <li style="word-wrap: break-word; font-size: 0.75em"> {{::address}}</li>
         </ul>
     </div>
     <!-- Apps -->

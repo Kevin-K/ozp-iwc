@@ -12,7 +12,7 @@ describe("Metrics: Timer",function() {
 	it("records data with time()",function() {
         var i;
         var tickFn = function() {
-				tick(i);
+				ozpIwc.testUtil.tick(i);
         };
 		for(i=1; i <= 10; ++i) {
 			timer.time(tickFn);
@@ -24,7 +24,7 @@ describe("Metrics: Timer",function() {
 	it("records data with start()",function() {
 		for(var i=1; i <= 10; ++i) {
 			var done=timer.start();
-			tick(1000);
+			ozpIwc.testUtil.tick(1000);
 			done();
 		}
 		var v=timer.get();

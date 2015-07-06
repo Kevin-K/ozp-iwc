@@ -97,6 +97,7 @@ jasmineRequire.HtmlReporter = function(j$) {
     };
 
     this.specStarted = function(result) {
+      result.specStartingTime=Date.now();
       currentParent.addChild(result, 'spec');
     };
 
@@ -109,7 +110,7 @@ jasmineRequire.HtmlReporter = function(j$) {
       if (result.status != 'disabled') {
         specsExecuted++;
       }
-
+      result.elapsed=Date.now()-result.specStartingTime;
       symbols.appendChild(createDom('li', {
           className: noExpectations(result) ? 'empty' : result.status,
           id: 'spec_' + result.id,
@@ -132,7 +133,7 @@ jasmineRequire.HtmlReporter = function(j$) {
           var expectation = result.failedExpectations[i];
           messages.appendChild(createDom("div", {className: "result-message"}, expectation.message));
           var stackTrace=createDom("ul", {className: "stack-trace"});
-          var lines=expectation.stack.split(/\r?\n/);
+          var lines=expectation.stack?expectation.stack.split(/\r?\n/):[];
           for(var j=0; j< lines.length; ++j) {
               var classes="stack-trace-line";
               if(lines[j].match(/jasmine.*.js/)) {
@@ -224,7 +225,7 @@ jasmineRequire.HtmlReporter = function(j$) {
               specListNode = createDom('ul', {className: 'specs'});
               domParent.appendChild(specListNode);
             }
-            var specDescription = resultNode.result.description;
+            var specDescription = resultNode.result.description + "  (time: " + resultNode.result.elapsed + "ms)";
             if(noExpectations(resultNode.result)) {
               specDescription = 'SPEC HAS NO EXPECTATIONS ' + specDescription;
             }

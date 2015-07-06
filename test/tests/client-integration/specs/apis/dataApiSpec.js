@@ -1,6 +1,5 @@
 describe("Data API", function () {
-    var client;
-    var participant;
+    var client, participant, resolve, reject, promise;
 
     beforeEach(function(done) {
         client=new ozpIwc.Client({
@@ -11,10 +10,15 @@ describe("Data API", function () {
             'client': client
         });
 
-        var gate=doneSemaphore(2,done);
+        var gate=ozpIwc.testUtil.doneSemaphore(2,done);
 
         participant.on("connected",gate);
         client.on("connected",gate);
+
+        promise = new Promise(function(res,rej){
+            resolve=res;
+            reject=rej;
+        });
     });
 
     afterEach(function() {
@@ -22,13 +26,13 @@ describe("Data API", function () {
         participant.close();
     });
 
-	it("responds to a bulk get with matching entities", function(done) {
+	pit("responds to a bulk get with matching entities", function() {
 		var packetOne={'resource': "/family", 'entity': "value1"};
 		var packetTwo={'resource': "/family_a", 'entity': "value2", 'contentType':"application/fake+b+json"};
         var packetThree={'resource': "/family_b", 'entity': "value3"};
         var packetFour={'resource': "/notfamily", 'entity': "value4"};
 
-		client.api('data.api').set(packetOne.resource,{entity:packetOne.entity})
+		return client.api('data.api').set(packetOne.resource,{entity:packetOne.entity})
 			.then(function() {
 				return client.api('data.api').set(packetTwo.resource,{'entity':packetTwo.entity,'contentType':packetTwo.contentType});
 			}).then(function() {
@@ -43,14 +47,12 @@ describe("Data API", function () {
 				expect(reply.entity[0]).toEqual(jasmine.objectContaining(packetOne));
 				expect(reply.entity[1]).toEqual(jasmine.objectContaining(packetTwo));
 				expect(reply.entity[2]).toEqual(jasmine.objectContaining(packetThree));
-				done();
 			})['catch'](function(error) {
 				expect(error).toEqual('not have happened');
-				done();
 			});
 	});
 
-    it('sets a value visible to other clients',function(done) {
+    pit('sets a value visible to other clients',function() {
         var packet={
             'dst': "data.api",
             'resource': "/test",
@@ -58,15 +60,12 @@ describe("Data API", function () {
             'entity' : { 'foo' : 1 }
         };
         participant.send(packet,function() {
-
-            client.api('data.api')
-                .get(packet.resource)
-                .then(function(reply) {
+            resolve();
+        });
+        return promise.then(function(){
+            return client.api('data.api').get(packet.resource).then(function (reply) {
                     expect(reply.entity).toEqual(packet.entity);
-                    done();
-                })['catch'](function(error) {
-                    expect(error).toEqual('not have happened');
-                });
+            });
         });
     });
 
@@ -78,63 +77,161 @@ describe("Data API", function () {
             'entity' : { 'foo' : 1 }
         };
         client.api('data.api').watch(packet.resource,function(reply) {
-            if(reply.response==="changed") {
-                expect(reply.entity.newValue).toEqual(packet.entity);
-                expect(reply.entity.oldValue).toEqual({});
-                done();
-            }
-            return true;
+            expect(reply.entity.newValue).toEqual(packet.entity);
+            expect(reply.entity.oldValue).toBeUndefined();
+            expect(reply.entity.newCollection).toEqual([]);
+            expect(reply.entity.oldCollection).toEqual([]);
+            done();
         }).then(function(reply) {
+            expect(reply.response).toEqual("ok");
+            expect(reply.collection).toBeUndefined();
+            expect(reply.entity).toBeUndefined();
             participant.send(packet);
-        })['catch'](function(error) {
-            expect(error).toEqual('');
         });
 
     });
-    it('can get a value set by another participant',function(done){
+    pit('can get a value set by another participant',function(){
         participant.send({
             'dst': "data.api",
                 'resource': "/test",
                 'action' : "set",
                 'entity' : { 'foo' : 2 }
         },function(response){
-            client.data().get('/test').then(function(reply){
+            resolve();
+        });
+        return promise.then(function(){
+            return client.data().get('/test').then(function(reply){
                 expect(reply.entity).toEqual({"foo":2});
-                done();
             });
         });
     });
-    it("can delete a value set by someone else",function(done) {
+    pit("can delete a value set by someone else",function() {
         participant.send({
             'dst': "data.api",
             'resource': "/test",
             'action': "set",
             'entity': {'foo': 2}
         }, function (response) {
-            client.data().get('/test').then(function (reply) {
-                expect(reply.entity).toEqual({"foo": 2});
-                client.data().delete('/test').then(function (reply) {
-                    expect(reply.response).toEqual("ok");
-                    client.data().get('/test').then(function (reply) {
-                        expect(reply.entity).toBeUndefined();
-                        done();
-                    });
-                });
-            });
+            resolve();
+        });
+
+        return promise.then(function() {
+            return client.data().get('/test');
+        }).then(function (reply) {
+            expect(reply.entity).toEqual({"foo": 2});
+            return client.data().delete('/test');
+        }). then(function (reply) {
+            expect(reply.response).toEqual("ok");
+            return client.data().get('/test');
+        })['catch'](function(error){
+            expect(error.response).toEqual("noResource");
         });
     });
 
-    it('Integration bus cleans up after every run',function(done) {
-        client.api('data.api').get('/test')
-            .then(function(reply) {
-                expect(reply.entity).toEqual({});
-                done();
-            })
-            ['catch'](function(error) {
-                expect(error).toEqual('');
-            });
+    pit('Integration bus cleans up after every run',function() {
+        return client.data().get('/test')['catch'](function(error) {
+            expect(error.response).toEqual("noResource");
+        });
     });
 
+    describe("Collections",function(){
+        pBeforeEach(function(){
+            return client.data().set("/tester",{entity:123}).then(function(r){
+                console.log(r);
+
+            }).catch(function(e){
+                console.log(e);
+            });
+        });
+        pit('Each resource has a collection property',function(){
+            return client.data().get('/tester').then(function(response){
+                expect(response.collection).toEqual([]);
+            });
+        });
+
+        pit('Each resource updates its collection property if it has a child added to it',function(){
+            var response;
+            return client.data().addChild('/tester',{entity:456}).then(function(resp) {
+                response = resp;
+                return client.data().get('/tester');
+            }).then(function(reply){
+                expect(reply.collection.length).toEqual(1);
+                expect(reply.collection).toEqual([response.entity.resource]);
+            });
+        });
+        pit('Each resource updates its collection property if it has children added to it',function(){
+            var response1,response2;
+            return client.data().addChild('/tester',{entity:456}).then(function(resp) {
+                response1 = resp;
+                return client.data().addChild('/tester', {entity: 456});
+            }).then(function(resp){
+                response2 = resp;
+                return client.data().get('/tester');
+            }).then(function(reply){
+                expect(reply.collection.length).toEqual(2);
+                expect(reply.collection).toEqual([response1.entity.resource,response2.entity.resource]);
+            });
+        });
+
+        pit('Each resource updates its collection property if it has children removed to it',function(){
+            var response;
+            return client.data().addChild('/tester',{entity:456}).then(function(resp) {
+                response = resp;
+                return client.data().get('/tester');
+            }).then(function(reply){
+                expect(reply.collection.length).toEqual(1);
+                expect(reply.collection).toEqual([response.entity.resource]);
+                return client.data().removeChild('/tester',{entity:{resource: response.entity.resource}});
+            }).then(function(){
+                return client.data().get('/tester');
+            }).then(function(reply){
+                expect(reply.collection).toEqual([]);
+            });
+        });
+
+        pit('A resource only updates if a child was added not a subresource being set.',function(){
+            return client.data().set('/tester/123', {entity:123}).then(function(){
+                return client.data().get('/tester');
+            }).then(function(reply){
+                expect(reply.collection).toEqual([]);
+            });
+        });
+        pit('A watched resource does not collect if it does not have a pattern',function(){
+            var resolve,reject;
+            var promise = new Promise(function(res,rej){
+                resolve = res;
+                reject = rej;
+            });
+            client.data().get('/tester').then(function(response){
+                expect(response.pattern).toBeUndefined();
+                return client.data().watch('/tester',function(reply){
+                    reject(reply);
+                });
+            }).then(function(){
+                client.data().set('/tester/123',{entity:123});
+            });
+
+            window.setTimeout(function(){
+                expect(true).toEqual(true);
+                resolve();
+            },1000);
+            return promise;
+
+
+        });
+        it('A watched resource collects if it has a pattern',function(done){
+            var resource = '/tester/123';
+            client.data().set('/tester',{pattern: '/tester/'}).then(function(response){
+                return client.data().watch('/tester',function(reply){
+                    expect(reply.entity.newCollection).toEqual([resource]);
+                    expect(reply.entity.oldCollection).toEqual([]);
+                    done();
+                });
+            }).then(function(){
+                return client.data().set(resource,{entity:123});
+            });
+        });
+    });
     xit('can list children added by another client',function(done) {
 
     });
@@ -157,18 +254,10 @@ describe("Data API", function () {
 
     describe('Data load test', function() {
 
-        it ('Gets the contents of the data api', function(done) {
-            var called = false;
-            client.api('data.api').get('dashboards/12345')
-                .then(function (packet) {
+        pit ('Gets the contents of the data api', function() {
+            return client.data().get('/dashboard/12345').then(function (packet) {
                     expect(packet.response).toEqual('ok');
-                    if (!called) {
-                        called = true;
-                        done();
-                    }
-                })['catch'](function (error) {
-                    expect(error).toEqual('');
-                });
+            });
         });
     });
 
@@ -189,58 +278,25 @@ describe("Data API", function () {
         });
 
 
-        it('Client sets values', function (done) {
-            var called = false;
-            client.api('data.api').set('/test', { entity: "testData"})
-                .then(function (packet) {
-                    if (!called) {
-                        called = true;
-                        expect(packet.response).toEqual('ok');
-                        done();
-                    }
-                })
-                ['catch'](function (error) {
-                    expect(error).toEqual('');
-                });
-        });
-
-
-        it('Client gets values', function (done) {
-            var called = false;
-
-            client.api('data.api').set('/test', { entity: "testData"})
-                .then(function (packet) {
-                    client.api('data.api').get('/test', {})
-                        .then(function (packet) {
-                            if (!called) {
-                                called = true;
-
-                                expect(packet.entity).toEqual('testData');
-
-                                done();
-                            }
-                        })
-                        ['catch'](function (error) {
-                            expect(error).toEqual('');
-                        });
-                })
-                ['catch'](function (error) {
-                    expect(error).toEqual('');
-                });
-        });
-
-        it('Client deletes values', function (done) {
-            var called = false;
-            client.api('data.api').delete('/test')
-                .then(function (packet) {
+        pit('Client sets values', function () {
+            return client.api('data.api').set('/test', { entity: "testData"}).then(function (packet) {
                     expect(packet.response).toEqual('ok');
-                    if (!called) {
-                        called = true;
-                        done();
-                    }
-                })['catch'](function (error) {
-                    expect(error).toEqual('');
-                });
+            });
+        });
+
+
+        pit('Client gets values', function () {
+            return client.api('data.api').set('/test', { entity: "testData"}).then(function (packet) {
+                return client.api('data.api').get('/test', {});
+            }).then(function (packet) {
+                    expect(packet.entity).toEqual('testData');
+            });
+        });
+
+        pit('Client deletes values', function () {
+            return client.api('data.api').delete('/test').then(function (packet) {
+                expect(packet.response).toEqual('ok');
+            });
         });
 
 //        xdescribe('Collection-like Actions', function () {

@@ -53,8 +53,13 @@ module.exports = function(config) {
     // start these browsers
     // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
     browsers: ['Firefox'],
+    // If browser does not capture in given timeout [ms], kill it
+    captureTimeout: 100000,
 
-
+    // to avoid DISCONNECTED messages
+    browserDisconnectTimeout : 10000, // default 2000
+    browserDisconnectTolerance : 3, // default 0
+    browserNoActivityTimeout : 60000, //default 10000
     // Continuous Integration mode
     // if true, Karma captures browsers, runs the tests and exits
     singleRun: true,     // If browser does not capture in given timeout [ms], kill it

@@ -4,9 +4,7 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
     $scope.enableOrNot = false;
     $scope.recvToggle = false;
     $scope.ELECTION_TIME = ozpIwc.ELECTION_TIMEOUT;
-    $scope.onElectionSelect = function(election){
-        $scope.selectedElection = election;
-    };
+
     function isNewestPacket(packet,api){
         { return api.lastElectionTS < packet.time; }
     }
@@ -15,68 +13,25 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
 
     }
 
-    $scope.apis = [
-        {
-            value: 'data.api',
-            title: 'Data Api',
-            elections: new vis.DataSet(),
-            electionGroups: new vis.DataSet(),
-            packets: {},
-            storageEvents: {},
-            lastElectionTS: -Number.MAX_VALUE
-        },
-        {
-            value: 'names.api',
-            title: 'Names Api',
-            elections: new vis.DataSet(),
-            electionGroups: new vis.DataSet(),
-            packets: {},
-            storageEvents: {},
-            lastElectionTS: -Number.MAX_VALUE
-        },
-        {
-            value: 'system.api',
-            title: 'System Api',
-            elections: new vis.DataSet(),
-            electionGroups: new vis.DataSet(),
-            packets: {},
-            storageEvents: {},
-            lastElectionTS: -Number.MAX_VALUE
-        },
-        {
-            value: 'intents.api',
-            title: 'Intents Api',
-            elections: new vis.DataSet(),
-            electionGroups: new vis.DataSet(),
-            packets: {},
-            storageEvents: {},
-            lastElectionTS: -Number.MAX_VALUE
-        }
-    ];
-
-    $scope.clear = function(){
-        for(var i in $scope.apis){
-            $scope.apis[i].elections = new vis.DataSet();
-            $scope.apis[i].electionGroups = new vis.DataSet();
-            $scope.apis[i].packets = {};
-            $scope.apis[i].storageEvents = {};
-        }
-        $scope.selectedElection = null;
+    $scope.graphData= {
+        value: 'locks.api',
+        title: 'locks Api',
+        elections: new vis.DataSet(),
+        electionGroups: new vis.DataSet(),
+        packets: {},
+        storageEvents: {},
+        lastElectionTS: -Number.MAX_VALUE
     };
 
-    function genTimelineDelta(packet){
-        var delta = packet.debuggerTime - packet.time;
-        var content = 'delta: ' + delta + ' ms';
-        return {
-            id: packet.time + "_delay",
-            content: content,
-            start: new Date(packet.time),
-            end: new Date(packet.debuggerTime),
-            style: "background-color: lightgray",
-            group: packet.src,
-            subgroup: "delay"
-        };
-    }
+    $scope.selectedElection = $scope.graphData;
+
+    $scope.clear = function(){
+        $scope.graphData.elections = new vis.DataSet();
+        $scope.graphData.electionGroups = new vis.DataSet();
+        $scope.graphData.packets = {};
+        $scope.graphData.storageEvents = {};
+    };
+
     function genTimelineData(packet){
         var state = (packet.action === "election" && typeof(packet.entity.state) !== 'undefined' && Object.keys(packet.entity.state).length > 0);
         var timelineData = {
@@ -158,13 +113,13 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
         api.electionGroups.update(timelineGroup);
 
         if(isNewestPacket(packet,api)) {
-            api.elections.add(genTimelineDelta(packet));
+            //api.elections.add(genTimelineDelta(packet));
             api.elections.add(genTimelineData(packet));
         } else if(outOfElectionWindow(packet,api)){
-            api.elections.add(genTimelineDelta(packet));
+            //api.elections.add(genTimelineDelta(packet));
             api.elections.add(genTimelineDrop(packet));
         } else {
-            api.elections.add(genTimelineDelta(packet));
+            //api.elections.add(genTimelineDelta(packet));
             api.elections.add(genTimelineOOS(packet));
         }
         if(packet.action === 'victory'){
@@ -184,61 +139,10 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
             return;
         }
 
-        switch (packet.dst) {
-            case "data.api.election":
-                $scope.$apply(function() {
-                    updateApiTimeline(packet,$scope.apis[0]);
-                });
-                break;
-
-            case "names.api.election":
-                $scope.$apply(function() {
-                    updateApiTimeline(packet,$scope.apis[1]);
-                });
-                break;
-
-            case "system.api.election":
-                $scope.$apply(function() {
-                    updateApiTimeline(packet,$scope.apis[2]);
-                });
-                break;
-
-            case "intents.api.election":
-                $scope.$apply(function() {
-                    updateApiTimeline(packet,$scope.apis[3]);
-                });
-                break;
-
-            default:
-                switch (packet.src) {
-                    case "data.api.election":
-                        $scope.$apply(function() {
-                            updateApiTimeline(packet,$scope.apis[0]);
-                        });
-                        break;
-
-                    case "names.api.election":
-                        $scope.$apply(function() {
-                            updateApiTimeline(packet,$scope.apis[1]);
-                        });
-                        break;
-
-                    case "system.api.election":
-                        $scope.$apply(function() {
-                            updateApiTimeline(packet,$scope.apis[2]);
-                        });
-                        break;
-
-                    case "intents.api.election":
-                        $scope.$apply(function() {
-                            updateApiTimeline(packet,$scope.apis[3]);
-                        });
-                        break;
-
-                    default:
-                        break;
-                }
-                break;
+        if(packet.dst === "locks.api.election" || packet.src === "locks.api.election") {
+            $scope.$apply(function() {
+                updateApiTimeline(packet,$scope.graphData);
+            });
         }
     }
 
@@ -247,20 +151,18 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
             var date = Date.now();
             var id = date +'_'+ Math.floor(Math.random() * 10000);
             var packet = JSON.parse(event.newValue);
-            for(var i in $scope.apis) {
-                $scope.apis[i].electionGroups.update({
-                    id: 'storageEvent',
-                    content: 'storageEvent'
-                });
-                $scope.apis[i].elections.add({
-                    id: id,
-                    content: packet.data.action || packet.data.response,
-                    style: (packet.data.action) ? "" : "background-color: yellow",
-                    start: date,
-                    group: 'storageEvent'
-                });
-                $scope.apis[i].storageEvents[id] =packet;
-            }
+            $scope.graphData.electionGroups.update({
+                id: 'storageEvent',
+                content: 'storageEvent'
+            });
+            $scope.graphData.elections.add({
+                id: id,
+                content: packet.data.action || packet.data.response,
+                style: (packet.data.action) ? "" : "background-color: yellow",
+                start: date,
+                group: 'storageEvent'
+            });
+            $scope.graphData.storageEvents[id] =packet;
         }
     };
 
@@ -269,9 +171,9 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
     $scope.toggle = function(){
         $scope.enableOrNot = !$scope.enableOrNot;
         if ($scope.enableOrNot){
-            $scope.evtListener = window.addEventListener("storage",storeEvt);
+            $scope.evtListener = ozpIwc.util.addEventListener("storage",storeEvt);
         } else {
-            window.removeEventListener("storage",$scope.evtListener);
+            ozpIwc.util.removeEventListener("storage",$scope.evtListener);
         }
         ozpIwc.defaultPeer.on("receive",logPacket);
         ozpIwc.defaultPeer.on("send",logPacket);

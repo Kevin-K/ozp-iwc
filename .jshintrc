@@ -38,16 +38,18 @@
     "alert": false,
     "spyOn": false,
 
+    //Jasmine Promises
+    "pit": true,
+    "pBeforeEach": true,
+    "pAfterEach": true,
+    "pauseForPromiseResolution": true,
+
     //Test globals
     // TODO: refactor these into the ozpIwc namespace or use jshint globals in the right places
-    "tick": true,
-    "doneSemaphore": true,
     "TestParticipant": true,
+    "TestClientParticipant" : true,
     "TestPacketContext": true,
     "FakeRouter": true,
-    "commonApiValueContractTests": true,
-    "customMatchers": true,
-    "promises": true,
-    "pit": true
+    "commonApiValueContractTests": true
   }
 }

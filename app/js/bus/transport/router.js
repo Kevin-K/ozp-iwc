@@ -107,22 +107,40 @@ ozpIwc.TransportPacketContext=function(config) {
 };
 
 /**
- * @method replyTo
- * @param {ozpIwc.TransportPacket} response
+ * Formats a response packet,
  *
- * @returns {ozpIwc.TransportPacket} the packet that was sent
+ * method makeReplyTo
+ * @param {Object} response
+ * @param {Number} [response.ver]
+ * @param {Number} [response.time]
+ * @param {String} [response.replyTo]
+ * @param {String} [response.src]
+ * @param {String} [response.dst]
+ * @returns {Object}
  */
-ozpIwc.TransportPacketContext.prototype.replyTo=function(response) {
+ozpIwc.TransportPacketContext.prototype.makeReplyTo=function(response){
     var now=new Date().getTime();
     response.ver = response.ver || 1;
     response.time = response.time || now;
     response.replyTo=response.replyTo || this.packet.msgId;
     response.src=response.src || this.packet.dst;
     response.dst=response.dst || this.packet.src;
+    return response;
+};
+
+/**
+ * Sends the given response to the sender of this context.
+ * @method replyTo
+ * @param {ozpIwc.TransportPacket} response
+ *
+ * @returns {ozpIwc.TransportPacket} the packet that was sent
+ */
+ozpIwc.TransportPacketContext.prototype.replyTo=function(response) {
+    response=this.makeReplyTo(response);
     if(this.dstParticipant) {
         this.dstParticipant.send(response);
     } else{
-        response.msgId = response.msgId || now;
+        response.msgId = response.msgId || ozpIwc.util.now();
         this.router.send(response);
     }
     return response;
@@ -245,7 +263,7 @@ ozpIwc.Router=function(config) {
         heartbeatFrequency: config.heartbeatFrequency
     });
 	this.registerParticipant(this.watchdog);
-
+    this.recursionDepth=0;
     ozpIwc.metrics.gauge('transport.router.participants').set(function() {
         return self.getParticipantCount();
     });
@@ -333,25 +351,33 @@ ozpIwc.Router.prototype.deliverLocal=function(packet,sendingParticipant) {
     if(!localParticipant) {
         return;
     }
-    var packetContext=new ozpIwc.TransportPacketContext({
-        'packet':packet,
-        'router': this,
-        'srcParticipant': sendingParticipant,
-        'dstParticipant': localParticipant
-    });
-
-    var preDeliverEvent=new ozpIwc.CancelableEvent({
-        'packet': packet,
-        'dstParticipant': localParticipant,
-        'srcParticipant': sendingParticipant
-    });
-
-    if(this.events.trigger("preDeliver",preDeliverEvent).canceled) {
-        ozpIwc.metrics.counter("transport.packets.rejected").inc();
-        return;
+    this.recursionDepth++;
+    if(this.recursionDepth > 10) {
+        console.log("Recursing more than 10 levels deep on ",packet);
     }
-    ozpIwc.metrics.counter("transport.packets.delivered").inc();
-    localParticipant.receiveFromRouter(packetContext);
+    try {
+        var packetContext=new ozpIwc.TransportPacketContext({
+            'packet':packet,
+            'router': this,
+            'srcParticipant': sendingParticipant,
+            'dstParticipant': localParticipant
+        });
+        
+        var preDeliverEvent=new ozpIwc.CancelableEvent({
+            'packet': packet,
+            'dstParticipant': localParticipant,
+            'srcParticipant': sendingParticipant
+        });
+
+        if(this.events.trigger("preDeliver",preDeliverEvent).canceled) {
+            ozpIwc.metrics.counter("transport.packets.rejected").inc();
+            return;
+        }
+        ozpIwc.metrics.counter("transport.packets.delivered").inc();
+        localParticipant.receiveFromRouter(packetContext);
+    } finally {
+        this.recursionDepth--;
+    }
 };
 
 

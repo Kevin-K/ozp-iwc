@@ -15,8 +15,8 @@ debuggerModule.controller('GeneralCtrl',['$scope', '$state', 'iwcClient',functio
     client.connect().then(function() {
         scope.apis.forEach(function(api){
             api.endpoints = [];
-            api.obj.endpointUrls.forEach(function(url){
-                var endpoint = ozpIwc.endpoint(url);
+            api.obj.endpoints.forEach(function(ep){
+                var endpoint = ozpIwc.endpoint(ep.link);
                 scope.$apply(function() {
                     scope.endpointTabulated.push({
                         'name': api.name,

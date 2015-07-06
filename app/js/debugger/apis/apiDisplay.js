@@ -12,7 +12,6 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
 
     scope.api = attrs.api;
     scope.msg.api = scope.api;
-    scope.hasChildren = apiDat.apis[scope.api].hasChildren || false;
     scope.clickActions = [];
     for(var i in apiDat.apis[scope.api].actions){
         var action = apiDat.apis[scope.api].actions[i].action;
@@ -74,17 +73,15 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
             cellClass: 'grid-pre',
             filter: containsFilterJSONGen(),
             width: "15%"
-        }];
-    if(scope.hasChildren){
-        columnDefs.push({
-            field: 'children',
-            displayName: 'Children',
-            cellTemplate:  statusTemplate,
+        },{
+            field:'collection',
+            displayName:'collection',
+            cellTemplate: statusTemplate,
             cellClass: 'grid-pre',
             filter: containsFilterJSONGen(),
             width: "15%"
-        });
-    }
+
+        }];
     scope.gridOptions = {
         data : 'keys',
         columnDefs: columnDefs,
@@ -92,30 +89,19 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
         enableFiltering: true,
         onRegisterApi: function( gridApi ) {
             scope.gridApi = gridApi;
-            scope.gridApi.core.handleWindowResize();
+            window.setTimeout(function(){
+                scope.gridApi.core.handleWindowResize();
+            },0);
         }
     };
 
     scope.loadKey = function (key) {
         client.api(scope.api).get(key.resource).then(function(response) {
-            for (i in response) {
+            for (var i in response) {
                 key[i] = response[i];
             }
             key.isLoaded = true;
-            if(scope.hasChildren){
-                client.api(scope.api).list(key.resource).then(function(response) {
-                    if (response.response === "ok") {
-                        key.children = response.entity;
-                    } else {
-                        key.children = "Not Supported: " + response.response;
-                    }
-                    if(!scope.$$phase) { scope.$apply(); }
-                })["catch"](function (error) {
-                    console.log('Error in loadKey: ' + JSON.stringify(error));
-                });
-            } else {
-                if(!scope.$$phase) { scope.$apply(); }
-            }
+            if(!scope.$$phase) { scope.$apply(); }
         })["catch"](function (error) {
             console.log('Error in loadKey: ' + JSON.stringify(error));
         });
@@ -144,7 +130,7 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
     };
 
     scope.refresh=function() {
-        client.api(scope.api).list().then(function(response){
+        client.api(scope.api).list("/").then(function(response){
             scope.keys=response.entity.map(function(k) {
                 var key={
                     'resource': k,
@@ -171,10 +157,18 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
                 if(response.response === 'changed') {
                     scope.$evalAsync(function() {
                         key.entity=response.entity.newValue;
+                        key.collection = response.entity.newCollection;
                         key.permissions=response.permissions;
                         key.contentType=response.contentType;
                     });
                 }
+            }).then(function(response){
+                scope.$evalAsync(function() {
+                    key.entity=response.entity;
+                    key.collection = response.collection;
+                    key.permissions=response.permissions;
+                    key.contentType=response.contentType;
+                });
             });
         } else {
             client.api(scope.api).unwatch(key.resource);
@@ -230,7 +224,7 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
       scope.entityFromFile = '';
     };
 
-    scope.writeActions = ['set','addChild','invoke','register','launch'];
+    scope.writeActions = ['set','addChild','removeChild','invoke','register','launch'];
     scope.$watch('msg.action',function(){
         if(scope.msg && scope.msg.action) {
             scope.entityVisible = scope.writeActions.indexOf(scope.msg.action) >= 0;
@@ -240,12 +234,6 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
     });
 
     scope.refresh();
-    scope.$on('$stateChangeSuccess',
-        function(event, toState, toParams) {
-            if (toState.name.indexOf('hasChildren') > -1) {
-                scope.hasChildren = toParams.hasChildren;
-            }
-        });
 }]);
 
 debuggerModule.directive( "apiDisplay", function() {

@@ -12,24 +12,121 @@
     </script>
     <script type="text/javascript" src="js/ozpIwc-bus.js"></script>
     <style>
+        body{
+            margin: 0;
+            -webkit-user-select: none; /* Chrome/Safari */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* IE10+ */
+        }
+        #titleBar {
+            background-color: #323232;
+            width: 100%;
+            height: 45px;
+            position: fixed;
+            top: 0;
+            z-index: 20;
+        }
+        #handlerList {
+            width: 100%;
+            background-color: #DBDBDB;
+            position: fixed;
+            top: 45px;
+            bottom:40px;
+            overflow:auto;
+        }
+        #footerBar {
+            height: 40px;
+            width: 100%;
+            min-width: 300px;
+            background: #323232;
+            position: fixed;
+            bottom: 0;
+        }
+        .titleText {
+            margin: 2px;
+            color: #F5F5F5;
+            white-space: nowrap;
+        }
+        .entry {
+            cursor: pointer;
+            height: 100px;
+            width: 150px;
+            display: block;
+            float:left;
+            border: 1px solid rgba(182, 182, 182, 0.5);
+            margin-left: -1px;
+            margin-top: -1px;
+        }
+        .entry:hover {
+            background-color: #F5F5F5;
+        }
+
+        .selected {
+            background-color: #009688;
+        }
+
+        .selected:hover {
+            background-color: rgba(158, 158, 158, 0.6);
+        }
         .icon {
             height: 32px;
             width: 32px;
             display: block;
+            position: relative;
+            left: 60px;
+            top: 10px;
         }
-        button {
+        .text {
+            word-wrap: break-word;
             text-align: center;
+        }
+        .footButton {
+            cursor: pointer;
+            height: 30px;
+            width: 105px;
+            float: right;
+            display: block;
+            border: 1px solid rgba(182, 182, 182, 0.3);
+            position: relative;
+            top: 4px;
+            right: 4px;
+            margin-left: -1px;
+            visibility:hidden;
+
+        }
+        .footButton:hover {
+            background-color: #9e9e9e;
+        }
+        .footButton p {
+            position: relative;
+            color: #F5F5F5;
+            top: 6px;
+            word-wrap: break-word;
+            text-align: center;
+            margin: 0;
         }
         </style>
   </head>
   <body>
+      <div id="titleBar"></div>
       <div id="handlerList"></div>
-      <div id="cancelButton"></div>
+      <div id="footerBar">
+          <div id="cancelButton" class="footButton">
+              <p>Cancel</p>
+          </div>
+          <div id="onceButton" class="footButton">
+              <p>Use Once</p>
+          </div>
+          <div id="alwaysButton" class="footButton">
+              <p>Use Always</p>
+          </div>
+      </div>
 
       <script type="text/javascript">
         var participant=new ozpIwc.ClientParticipant({'name':"intentsChooser"});
         ozpIwc.defaultRouter.registerParticipant(participant);
 
+        var cancelButton, onceButton, alwaysButton,selection;
         function failure(msg) {
             document.getElementById("handlerList").textContent=msg;
         }
@@ -38,38 +135,92 @@
             participant.intents().set(intentInvocation.resource,{
                 contentType: intentInvocation.contentType,
                 entity: {
-                    resource: handler.resource,
-                    reason: "user",
-                    state: "choosing"
+                'state': "delivering",
+                    'handlerChosen' : {
+                        'resource':handler.resource,
+                        'reason': "userSelected"
+                    }
                 }
             }).then(function(){
                 window.close();
             });
         }
 
-        function showHandlers(handlers,intentInvocation) {
+        function showTitle(action,type){
+            var actionText = document.createElement("p");
+            actionText.setAttribute("class","titleText");
+            actionText.innerHTML = "<b>Action:</b> " + action;
+            var typeText = document.createElement("p");
+            typeText.setAttribute("class","titleText");
+            typeText.innerHTML = "<b>Type:</b> " + type;
+
+            var titleBar = document.getElementById("titleBar");
+            titleBar.appendChild(actionText);
+            titleBar.appendChild(typeText);
+
+        }
+
+        function removeHighlight(handler){
+            var element = document.getElementById(handler.resource);
+            if(element) {
+                element.setAttribute("class", "entry");
+            }
+        }
+
+        function addHighlight(handler){
+            var element = document.getElementById(handler.resource);
+            if(element) {
+                element.setAttribute("class", "entry selected");
+                onceButton.style.visibility = "visible";
+                //alwaysButton.style.visibility = "visible"; //@TODO: enable when persistence implemented
+            }
+        }
+
+        function showHandlers(handlers) {
+
+            onceButton.style.visibility = "hidden";
+            //alwaysButton.style.visibility = "hidden"; //@TODO: enable when persistence implemented
+            document.getElementById("handlerList").innerHTML = "";
+
             handlers.forEach(function(h) {
                 var handler = h;
-                var button=document.createElement("button");
+                var entry=document.createElement("div");
+                entry.setAttribute("class","entry");
+                entry.setAttribute("id",handler.resource);
+                entry.setAttribute("class","entry");
+
                 var icon=document.createElement("img");
                 icon.setAttribute("src",handler.entity.icon);
                 icon.setAttribute("alt",handler.entity.label);
                 icon.setAttribute("class","icon");
-                button.appendChild(icon);
-                button.appendChild(document.createTextNode(handler.entity.label));
-                button.addEventListener("click",function(evt) {
+
+                var text = document.createElement("p");
+                text.setAttribute("class","text");
+                text.appendChild(document.createTextNode(handler.entity.label));
+
+                entry.appendChild(icon);
+                entry.appendChild(text);
+                entry.addEventListener("click",function(evt) {
                     evt.preventDefault();
-                    handleSelection(handler,intentInvocation);
+                    if(selection){
+                        removeHighlight(selection);
+                    }
+                    selection = handler;
+                    addHighlight(selection);
                 });
-                document.getElementById("handlerList").appendChild(button);
+
+                document.getElementById("handlerList").appendChild(entry);
             });
         }
 
-        function showCancel(intentInvocation){
-            var button=document.createElement("button");
-            button.appendChild(document.createTextNode("Cancel"));
-            button.addEventListener("click",function(evt) {
-                evt.preventDefault();
+        function showFooter(intentInvocation){
+            alwaysButton = document.getElementById("alwaysButton");
+            alwaysButton.addEventListener("click",function() {
+                //@TODO: implement with persistence
+            });
+
+            cancelButton = document.getElementById("cancelButton");
+            cancelButton.addEventListener("click",function(evt) {
                 participant.intents().set(intentInvocation.resource,{
                     contentType: intentInvocation.contentType,
                     entity: {
@@ -77,13 +228,18 @@
                             'contentType': intentInvocation.contentType,
                             entity: "User canceled the selection."
                         },
-                        state: "fail"
+                        state: "complete"
                     }
                 }).then(function(){
                     window.close();
                 });
             });
-            document.getElementById("handlerList").appendChild(button);
+            cancelButton.style.visibility = "visible";
+
+            onceButton = document.getElementById("onceButton");
+            onceButton.addEventListener("click",function() {
+                handleSelection(selection,intentInvocation);
+            });
         }
 
         var m=/ozpIwc.intentSelection=([^&#]+)/.exec(window.name);
@@ -97,13 +253,35 @@
             failure("This page is intended to be launch only by the Ozone Platform intents API.");
         }
         var loc=ozpIwc.util.parseOzpUrl(m[1]);
+        loc.action = "watch";
 
-        participant.send(loc).then(function(reply) {
-            showHandlers(reply.entity.handlerChoices || [], reply);
-            showCancel(reply);
-        })['catch'](function(){
-                failure();
-        });
+        var getHandlers = function(array){
+            var promises = [];
+            for(var i in array){
+                promises.push(participant.intents().get(array[i]));
+            }
+            return Promise.all(promises);
+        };
+
+        var onHandlerChange = function(reply,done){
+            if(reply.entity.deleted){
+                done();
+                window.close();
+            }
+            var collection = reply.entity.newCollection || [];
+            getHandlers(collection).then(showHandlers);
+        };
+
+        participant.send(loc,onHandlerChange).then(function(reply) {
+            var action,type;
+            if(reply.entity.intent) {
+                action = reply.entity.intent.action;
+                type = reply.entity.intent.type;
+            }
+            showTitle(action,type);
+            showFooter(reply);
+            getHandlers(reply.collection).then(showHandlers);
+        },failure);
     </script>
   </body>
 </html>

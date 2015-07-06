@@ -111,6 +111,8 @@ ozpIwc.util.openWindow=function(url,windowName,features) {
     ozpIwc.BUS_ROOT=window.location.protocol + "//" +
             window.location.host +
             window.location.pathname.replace(/[^\/]+$/,"");
+
+    ozpIwc.INTENT_CHOOSER_FEATURES = "width=330,height=500";
 })();
 
 
@@ -158,6 +160,6 @@ ozpIwc.util.alert = function (message, errorObject) {
  *
  * @returns {Array}
  */
-ozpIwc.util.ensureArray=function(obj) { 
+ozpIwc.util.ensureArray=function(obj) {
 	return Array.isArray(obj)?obj:[obj];
 };

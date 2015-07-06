@@ -1,41 +1,34 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Integration Tests</title>
+    <head>
+        <title>Integration Tests</title>
 
-    <link rel="shortcut icon" type="image/png" href="/jasmine-core/jasmine_favicon.png">
-    <link rel="stylesheet" type="text/css" href="/jasmine-core/jasmine.css">
-    <link rel="stylesheet" type="text/css" href="../../jasmine-iwc-html-reporter.css">
+        <link rel="shortcut icon" type="image/png" href="/jasmine-core/jasmine_favicon.png">
+        <link rel="stylesheet" type="text/css" href="/jasmine-core/jasmine.css">
+        <link rel="stylesheet" type="text/css" href="../../jasmine-iwc-html-reporter.css">
 
-    <script type="text/javascript" src="/jasmine-core/jasmine.js"></script>
-    <script type="text/javascript" src="../../jasmine-iwc-html-reporter.js"></script>
-    <script type="text/javascript" src="/jasmine-core/boot.js"></script>
-    <script type="text/javascript">
-        //jasmine.DEFAULT_TIMEOUT_INTERVAL=10000;
-    </script>
+        <script type="text/javascript" src="/jasmine-core/jasmine.js"></script>
+        <script type="text/javascript" src="../../jasmine-iwc-html-reporter.js"></script>
+        <script type="text/javascript" src="/jasmine-core/boot.js"></script>
+        <script type="text/javascript">
+            jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
+            // Clear out the window.name in case it's left over from previous failed tests
+            window.name = "";
+        </script>
 
-    <script type="text/javascript" src="/js/ozpIwc-client.js"></script>
-    <script type="text/javascript" src="/lib/testTools.js"></script>
-    <script type="text/javascript" src="/mockParticipant/js/mockParticipant.js"></script>
+        <script type="text/javascript" src="/js/ozpIwc-client.js"></script>
+        <script type="text/javascript" src="/lib/testTools.js"></script>
+        <script type="text/javascript" src="/lib/jasmine-promises.js"></script>
+        <script type="text/javascript" src="/mockParticipant/js/mockParticipant.js"></script>
 
-    <script type="text/javascript" src="specs/clientSpec.js"></script>
-    <script type="text/javascript" src="specs/apis/dataApiSpec.js"></script>
-    <script type="text/javascript" src="specs/apis/intentsApiSpec.js"></script>
-    <script type="text/javascript" src="specs/apis/namesApiSpec.js"></script>
-    <script type="text/javascript" src="specs/apis/systemApiSpec.js"></script>
-
-    <!-- include spec files here... -->
-    <!---
-    
-    <script type="text/javascript" src="specs/apis/intents/intentApiSpec.js"></script>
-    <script type="text/javascript" src="specs/apis/peerSpec.js"></script>
-    <script type="text/javascript" src="specs/fragmentSpec.js"></script>
-    -->
-
-</head>
-<body>
-    	<script src="//localhost:35729/livereload.js"></script>
-
-<div id="jasmineReport"></div>
-</body>
+        <script type="text/javascript" src="specs/clientSpec.js"></script>
+        <script type="text/javascript" src="specs/apis/namesApiSpec.js"></script>
+        <script type="text/javascript" src="specs/apis/dataApiSpec.js"></script>
+        <script type="text/javascript" src="specs/apis/intentsApiSpec.js"></script>
+        <script type="text/javascript" src="specs/apis/systemApiSpec.js"></script>
+    </head>
+    <body>
+        <script src="//localhost:35729/livereload.js"></script>
+        <div id="jasmineReport"></div>
+    </body>
 </html>

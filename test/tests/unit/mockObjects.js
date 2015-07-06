@@ -18,15 +18,25 @@ var FakePeer = function() {
 //========================================================
 // TestParticipant for connecting to a router
 //========================================================
-var TestParticipant = ozpIwc.util.extend(ozpIwc.InternalParticipant, function(config) {
-    ozpIwc.InternalParticipant.apply(this, arguments);
+var TestParticipant = ozpIwc.util.extend(ozpIwc.ClientParticipant, function(config) {
+    config = config || {};
+    this.sentPacketObjs = [];
+    this.packets = [];
+    this.activeStates = config.activeStates || {
+        'leader': true,
+        'member': false,
+        'election': false,
+        'queueing': false
+    };
+
+
+    ozpIwc.ClientParticipant.apply(this, arguments);
     config = config || {};
     this.origin = config.origin || "foo.com";
     this.address = config.staticAddress;
-    this.packets = [];
-    this.sentPackets = [];
     // since we aren't connecting to a router, mock these out, too
     this.metricRoot = "testparticipant";
+    this.participantType="testParticipant";
     this.sentPacketsMeter = ozpIwc.metrics.meter(this.metricRoot, "sentPackets");
     this.receivedPacketsMeter = ozpIwc.metrics.meter(this.metricRoot, "receivedPackets");
     this.forbiddenPacketsMeter = ozpIwc.metrics.meter(this.metricRoot, "forbiddenPackets");
@@ -39,54 +49,53 @@ var TestParticipant = ozpIwc.util.extend(ozpIwc.InternalParticipant, function(co
         'send': function() {
         }
     };
-
-    this.receiveFromRouter = function(packet) {
-        this.packets.push(packet);
-        return ozpIwc.InternalParticipant.prototype.receiveFromRouter.call(this, packet);
-    };
-
-    this.send = function(packet, callback) {
-        packet = ozpIwc.InternalParticipant.prototype.send.call(this, packet, callback);
-        this.sentPackets.push(packet);
-        // tick to trigger the async send
-        tick(0);
-        return packet;
-    };
-
-    this.reply = function(originalPacket, packet, callback) {
-        packet.ver = packet.ver || originalPacket.ver || 1;
-        packet.src = packet.src || originalPacket.dst || this.address;
-        packet.dst = packet.dst || originalPacket.src || config.dst;
-        packet.msgId = packet.msgId || this.messageId++;
-        packet.time = packet.time || new Date().getTime();
-
-        packet.replyTo = originalPacket.msgId;
-
-        packet.action = packet.action || originalPacket.action;
-        packet.resource = packet.resource || originalPacket.resource;
-
-        this.sentPackets.push(packet);
-
-        if (callback) {
-            this.callbacks[packet.msgId] = callback;
-        }
-        if (this.router) {
-            this.router.send(packet, this);
-        }
-        return packet;
-    };
 });
 
-var FakePeer = function() {
-    this.events = new ozpIwc.Event();
-
-    this.events.mixinOnOff(this);
-
-    this.packets = [];
-    this.send = function(packet) {
-        this.packets.push(packet);
-    };
+TestParticipant.prototype.receiveFromRouter = function(packet) {
+    this.packets.push(packet);
+    return ozpIwc.ClientParticipant.prototype.receiveFromRouter.call(this, packet);
 };
+
+TestParticipant.prototype.sendImpl = function(packet, callback) {
+    this.sentPacketObjs.push(packet);
+    try {
+        packet = ozpIwc.ClientParticipant.prototype.send.call(this, packet, callback);
+    } catch (e) {
+        packet=e;
+    }
+    // tick to trigger the async send
+    ozpIwc.testUtil.tick(0);
+};
+
+TestParticipant.prototype.reply = function(originalPacket, packet, callback) {
+    packet.ver = packet.ver || originalPacket.ver || 1;
+    packet.src = packet.src || originalPacket.dst || this.address;
+    packet.dst = packet.dst || originalPacket.src;// || config.dst;
+    packet.msgId = packet.msgId || this.messageId++;
+    packet.time = packet.time || new Date().getTime();
+
+    packet.replyTo = originalPacket.msgId;
+
+    packet.action = packet.action || originalPacket.action;
+    packet.resource = packet.resource || originalPacket.resource;
+
+    this.sentPacketObjs.push(packet);
+
+    if (callback) {
+        this.callbacks[packet.msgId] = callback;
+    }
+    if (this.router) {
+        this.router.send(packet, this);
+    }
+    return packet;
+};
+
+
+var TestClientParticipant=ozpIwc.util.extend(TestParticipant,function() {
+    TestParticipant.apply(this,arguments);
+    this.participantType="testClientParticipant";
+});
+
 
 //================================================
 // Packetbuilders for testing API classes
@@ -101,7 +110,9 @@ var TestPacketContext = ozpIwc.util.extend(ozpIwc.TransportPacketContext, functi
         }
     };
 });
-
+//================================================
+// Fake Router
+//================================================
 var FakeRouter = function() {
     this.jitter = 0;
     this.events = new ozpIwc.Event();
@@ -150,3 +161,23 @@ var FakeRouter = function() {
         });
     };
 };
+
+ozpIwc.testUtil.customMatchers.toHaveSent=function(util, customEqualityTesters) { return { compare: function(participant,expected) {
+    if(!((participant instanceof TestParticipant) || (participant instanceof TestPacketContext)) ) {
+        return {
+            pass: false,
+            message: "Expected " + participant + " to be a TestParticipant"
+        };
+    }
+
+    var sentPackets=participant.sentPacketObjs || participant.responses;
+
+    var contains=util.contains(sentPackets,jasmine.objectContaining(expected),customEqualityTesters);
+    return {
+        pass: contains,
+        message: "Expected the participant to " + (contains?"NOT ":"") + "have sent " +
+            JSON.stringify(expected,null,2) +
+            ", but it sent packets " +
+            JSON.stringify(sentPackets,null,2)
+    };
+}};};

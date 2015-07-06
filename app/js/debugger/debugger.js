@@ -56,12 +56,14 @@ debuggerModule.controller("debuggerController",["$scope","iwcClient",function(sc
     scope.ozpIwc = ozpIwc;
     scope.apiRootUrl = ozpIwc.apiRootUrl;
     scope.tab = 'general';
+    client.connect().then(function(){
+        scope.address = client.address;
+    });
 }]);
 debuggerModule.service("apiSettingService",function(){
     this.apis={
         'data.api' : {
             'address': "data.api",
-            'hasChildren':true
         },
         'intents.api': {
             'address': "intents.api",

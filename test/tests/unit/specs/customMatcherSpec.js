@@ -1,5 +1,5 @@
 
-describe("customMatchers",function() {
+describe("ozpIwc.testUtil.customMatchers",function() {
 	describe("toBeInstanceOf", function() {
 		var toBeInstanceOf;
 		
@@ -10,7 +10,7 @@ describe("customMatchers",function() {
 
 		
 		beforeEach(function() {
-			toBeInstanceOf= customMatchers.toBeInstanceOf();
+			toBeInstanceOf= ozpIwc.testUtil.customMatchers.toBeInstanceOf();
 		});
 		
 		it("matches a class on it's own", function() {
@@ -49,7 +49,7 @@ describe("customMatchers",function() {
 					return actual.indexOf(expected) !== -1;
 				}
 			};
-			toContainAll= customMatchers.toContainAll(util);
+			toContainAll= ozpIwc.testUtil.customMatchers.toContainAll(util);
 		});
 		
 		it("works on single value number arrays", function() {

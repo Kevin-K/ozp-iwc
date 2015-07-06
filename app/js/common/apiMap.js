@@ -12,5 +12,8 @@ ozpIwc.apiMap = {
     },
     "system.api" : { 'address': 'system.api',
         'actions': ["get","set","delete","watch","unwatch","list","bulkGet","launch"]
+    },
+    "locks.api" : { 'address' : 'locks.api',
+        'actions': ["get","watch","unwatch","list","lock","unlock"]
     }
 };

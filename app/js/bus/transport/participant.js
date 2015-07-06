@@ -88,7 +88,7 @@ ozpIwc.Participant=function() {
 
     // Handle leaving Event Channel
     var self=this;
-    window.addEventListener("beforeunload",function() {
+    ozpIwc.util.addEventListener("beforeunload",function() {
         // Unload events can't use setTimeout's. Therefore make all sending happen with normal execution
         self.send = function(originalPacket,callback) {
             var packet=this.fixPacket(originalPacket);
@@ -247,7 +247,7 @@ ozpIwc.Participant.prototype.send=function(packet) {
             }
             self.router.send(packet, self);
         }).failure(function(e){
-            console.error("Participant Failed to send a packet:",e);
+            console.error("Participant " + self.address + " failed to send a packet:",e,packet);
         });
     return packet;
 };

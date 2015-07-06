@@ -1,75 +1,140 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>OZP IWC Unit Tests</title>
+    <head>
+        <title>OZP IWC Unit Tests</title>
 
-		<link rel="shortcut icon" type="image/png" href="/jasmine-core/jasmine_favicon.png">
-      <link rel="stylesheet" type="text/css" href="/jasmine-core/jasmine.css">
-      <link rel="stylesheet" type="text/css" href="../../jasmine-iwc-html-reporter.css">
+        <link rel="shortcut icon" type="image/png" href="/jasmine-core/jasmine_favicon.png">
+        <link rel="stylesheet" type="text/css" href="/jasmine-core/jasmine.css">
+        <link rel="stylesheet" type="text/css" href="../../jasmine-iwc-html-reporter.css">
 
-		<script type="text/javascript" src="/jasmine-core/jasmine.js"></script>
-		<script type="text/javascript" src="../../jasmine-iwc-html-reporter.js"></script>
-		<script type="text/javascript" src="/jasmine-core/boot.js"></script>
-      <script type="text/javascript">
-          // These should be customized by the deployment
-          var ozpIwc = ozpIwc || {};
-          ozpIwc.enableDefault=false;
-      </script>
-		<script type="text/javascript" src="/js/ozpIwc-bus.js"></script>
-        <script type="text/javascript" src="/js/ozpIwc-client.js"></script>
-		<!-- include spec files here... -->
-		<script type="text/javascript" src="/lib/testTools.js"></script>
-		<script type="text/javascript" src="mockObjects.js"></script>
+        <script type="text/javascript" src="/jasmine-core/jasmine.js"></script>
+        <script type="text/javascript" src="../../jasmine-iwc-html-reporter.js"></script>
+        <script type="text/javascript" src="/jasmine-core/boot.js"></script>
+        <script type="text/javascript">
+            // These should be customized by the deployment
+            var ozpIwc = ozpIwc || {};
+            ozpIwc.enableDefault = false;
+        </script>
+        <script type="text/javascript" src="/js/ozpIwc-bus.js"></script>
+        <!--script type="text/javascript" src="/js/ozpIwc-client.js"></script-->
+        <script type="text/javascript">
+
+            ozpIwc.log.setThreshold(ozpIwc.log.ALL);
+
+            ozpIwc.defaultPeer = new ozpIwc.Peer();
+            ozpIwc.defaultRouter = new ozpIwc.Router({
+                peer: ozpIwc.defaultPeer,
+                heartbeatFrequency: 99999999
+            });
 
 
-		<script type="text/javascript" src="specs/customMatcherSpec.js"></script>
+            // All unit tests need to fake out the clock
+            var now = function() {
+                return Date.now();
+            };
+            var start;
+            beforeEach(function() {
+                start = now();
+                jasmine.clock().install();
+            });
+            afterEach(function() {
+                jasmine.clock().uninstall();
+                ozpIwc.object.eachEntry(ozpIwc.util.eventListeners, function(type, listenerList) {
+                    if (listenerList.length) {
+                        console.log("Dangling listeners on " + type, listenerList);
+                    }
+                });
+                ozpIwc.util.purgeEventListeners();
+                expect(now() - start).toBeLessThan(15000);
+            });
+
+        </script>
 
 
-		<script type="text/javascript" src="specs/utilSpec.js"></script>
-		<script type="text/javascript" src="specs/packetRouterSpec.js"></script>
+        <script type="text/javascript" src="/lib/testTools.js"></script>
+        <script type="text/javascript" src="/lib/mockTime.js"></script>
+        <script type="text/javascript" src="/lib/jasmine-promises.js"></script>
+        <script type="text/javascript" src="mockObjects.js"></script>
 
-		<script type="text/javascript" src="specs/metrics/sampleSpec.js"></script>
-		<script type="text/javascript" src="specs/metrics/metricsSpec.js"></script>
-		<script type="text/javascript" src="specs/metrics/counterSpec.js"></script>
-		<script type="text/javascript" src="specs/metrics/gaugeSpec.js"></script>
-		<script type="text/javascript" src="specs/metrics/meterSpec.js"></script>
-		<script type="text/javascript" src="specs/metrics/histogramSpec.js"></script>
-		<script type="text/javascript" src="specs/metrics/timerSpec.js"></script>
 
-		<script type="text/javascript" src="specs/localStorageLinkSpec.js"></script>
-        <script type="text/javascript" src="specs/clientSpec.js"></script>
-		<script type="text/javascript" src="specs/peerSpec.js"></script>
-		<script type="text/javascript" src="specs/routerSpec.js"></script>
+        <!-- include spec files here... -->
+
+        <!-- Tests for test Helpers -->
+        <script type="text/javascript" src="specs/customMatcherSpec.js"></script>
+
+        <!-- Utilities -->
+        <script type="text/javascript" src="specs/utilSpec.js"></script>
+        <script type="text/javascript" src="specs/packetRouterSpec.js"></script>
+
+        <!-- Metrics -->
+        <script type="text/javascript" src="specs/metrics/sampleSpec.js"></script>
+        <script type="text/javascript" src="specs/metrics/metricsSpec.js"></script>
+        <script type="text/javascript" src="specs/metrics/counterSpec.js"></script>
+        <script type="text/javascript" src="specs/metrics/gaugeSpec.js"></script>
+        <script type="text/javascript" src="specs/metrics/meterSpec.js"></script>
+        <script type="text/javascript" src="specs/metrics/histogramSpec.js"></script>
+        <script type="text/javascript" src="specs/metrics/timerSpec.js"></script>
+
+        <!-- Network Layer -->
+        <script type="text/javascript" src="specs/keyBroadcastLocalStorageLinkSpec.js"></script>
+        <script type="text/javascript" src="specs/peerSpec.js"></script>
+
+        <!-- Transport Layer -->
+        <script type="text/javascript" src="specs/routerSpec.js"></script>
+
+        <!-- Participants -->
         <script type="text/javascript" src="specs/internalParticipantSpec.js"></script>
-		<script type="text/javascript" src="specs/leaderGroupParticipantSpec.js"></script>
+        <script type="text/javascript" src="specs/clientParticipantSpec.js"></script>
         <script type="text/javascript" src="specs/postMessageParticipantSpec.js"></script>
+        <script type="text/javascript" src="specs/leaderGroupParticipantSpec.js"></script>
 
-		<script type="text/javascript" src="specs/security/abacPoliciesSpec.js"></script>
-		<script type="text/javascript" src="specs/security/basicAuthorizationSpec.js"></script>
+        <!-- Security -->
+        <script type="text/javascript" src="specs/security/abacPoliciesSpec.js"></script>
+        <script type="text/javascript" src="specs/security/basicAuthorizationSpec.js"></script>
         <script type="text/javascript" src="specs/security/pbac/pdpSpec.js"></script>
         <script type="text/javascript" src="specs/security/pbac/pipSpec.js"></script>
         <script type="text/javascript" src="specs/security/pbac/prpSpec.js"></script>
 
-		<script type="text/javascript" src="specs/api/commonApiValueSpec.js"></script>
-		<script type="text/javascript" src="specs/api/commonApiBaseSpec.js"></script>
+        <!-- Server communications -->
+        <script type="text/javascript" src="specs/api/endpointRegistrySpec.js"></script>
+        <script type="text/javascript" src="specs/services/ajaxPersistenceQueueSpec.js"></script>
+
+        <!-- New-style APIs -->
+        <script type="text/javascript" src="specs/services/apiNodeSpec.js"></script>
+        <script type="text/javascript" src="specs/services/apiBaseSpec.js"></script>
+
+        <script type="text/javascript" src="specs/services/data/dataNodeSpec.js"></script>
+        <script type="text/javascript" src="specs/services/data/dataApiSpec.js"></script>
+
+        <script type="text/javascript" src="specs/services/names/namesApiSpec.js"></script>
+
+        <script type="text/javascript" src="specs/services/system/systemApiSpec.js"></script>
+				
+        <script type="text/javascript" src="specs/services/intents/InflightIntentNodeSpec.js"></script>
+        <script type="text/javascript" src="specs/services/intents/intentApiSpec.js"></script>
+      
+        <!-- Old-style APIs -->
+        <script type="text/javascript" src="specs/api/commonApiValueSpec.js"></script>
+        <script type="text/javascript" src="specs/api/commonApiBaseSpec.js"></script>
+
+        <script type="text/javascript" src="specs/api/locksApiValueSpec.js"></script>
+        <script type="text/javascript" src="specs/api/locksApiSpec.js"></script>
+
+        <!-- Legacy tests, probably not needed
         <script type="text/javascript" src="specs/api/dataApiValueSpec.js"></script>
+        <script type="text/javascript" src="specs/api/dataApiSpec.js"></script>
+
         <script type="text/javascript" src="specs/api/intentApiDataValuesSpec.js"></script>
         <script type="text/javascript" src="specs/api/intentApiSpec.js"></script>
-        <script type="text/javascript" src="specs/api/dataApiSpec.js"></script>
-        <script type="text/javascript" src="specs/api/namesApiValueSpec.js"></script>
-        <script type="text/javascript" src="specs/api/namesApiSpec.js"></script>
-        <script type="text/javascript" src="specs/api/systemApiSpec.js"></script>
 
-        <script type="text/javascript" src="specs/services/ajaxPersistenceQueueSpec.js"></script>
-        <!--
         <script type="text/javascript" src="specs/api/systemApiValueSpec.js"></script>
+        <script type="text/javascript" src="specs/api/systemApiSpec.js"></script>
         -->
-        <script type="text/javascript" src="specs/keyBroadcastLocalStorageLinkSpec.js"></script>
-      <script type="text/javascript" src="specs/api/endpointRegistrySpec.js"></script>
-
         
-  </head>
-<body>
-	<script src="//localhost:35729/livereload.js"></script>
-</body>
+        <!--script type="text/javascript" src="specs/clientSpec.js"></script-->
+
+    </head>
+    <body>
+        <script src="//localhost:35729/livereload.js"></script>
+    </body>
 </html>

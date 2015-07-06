@@ -12,27 +12,9 @@ describe("Leader Group Participant",function() {
 
 	var tick=function(t) {
 		fakeRouter.pump();
-		jasmine.clock().tick(t);
+		ozpIwc.testUtil.tick(t);
 		fakeRouter.pump();
 	};
-
-	var moveTime=function(step) {
-		var elected=false;
-		var round=0;
-        var leaderStatus = function(l) {
-            return l.isLeader();
-        };
-		while(!elected) {
-//			console.log("============= Round " + round + " ===================");
-			round++;
-			jasmine.clock().tick(step);
-			fakeRouter.pump();
-
-			elected=fakeRouter.participants.some(leaderStatus);
-		}
-	};
-
-    var log=function(){}; // console.log
     
 	var makeLeader=function(priority) {
 		var l=new ozpIwc.LeaderGroupParticipant({
@@ -43,16 +25,16 @@ describe("Leader Group Participant",function() {
 		fakeRouter.registerParticipant(l);
 		l.on("startElection", function() {
             l.changeState("election");
-			log("startElection[" + l.address + "]");
+			ozpIwc.log.debug("startElection[" + l.address + "]");
 		});
 		l.on("endElection",function() {
-			log("endElection[" + l.address + "]");
+			ozpIwc.log.debug("endElection[" + l.address + "]");
 		});
 		l.on("newLeader",function() {
-			log("newLeader[" + l.address + "]");
+			ozpIwc.log.debug("newLeader[" + l.address + "]");
 		});
 		l.on("becameLeader",function() {
-			log("becameLeader[" + l.address + "]");
+			ozpIwc.log.debug("becameLeader[" + l.address + "]");
 		});
         l.on("becameLeaderEvent",function(){
             l.sendVictoryMessage();
@@ -73,31 +55,7 @@ describe("Leader Group Participant",function() {
 		return l;
 	};
 
-    var jitter = function() {
-        fakeRouter.jitter=0.5;
 
-        var lowbie=makeLeader(1);
-        var i;
-        for(i=10; i< 20; ++i) {
-            makeLeader(i);
-        }
-        var leader=makeLeader(100);
-
-        lowbie.startElection();
-
-        // step forward time by 50ms at a shot until the chatter stops
-        moveTime(10);
-
-        for(i=0; i< fakeRouter.participants.length-1; ++i) {
-            if(fakeRouter.participants[i].isLeader()) {
-//					console.log("Leader " + i + " thinks he is the bully");
-            }
-            expect(fakeRouter.participants[i].isLeader()).toEqual(false);
-        }
-
-        expect(leader.isLeader()).toEqual(true);
-
-	};
 
     beforeEach(function() {
         fakeRouter=new FakeRouter();
@@ -177,8 +135,48 @@ describe("Leader Group Participant",function() {
 		expect(leader.isLeader()).toEqual(true);
 
 	});
+    
+	var moveTime=function(step) {
+		var elected=false;
+		var round=0;
+        var leaderStatus = function(l) {
+            return l.isLeader();
+        };
+		while(!elected) {
+//			console.ozpIwc.log.debug("============= Round " + round + " ===================");
+			round++;
+			ozpIwc.testUtil.tick(step);
+			fakeRouter.pump();
 
+			elected=fakeRouter.participants.some(leaderStatus);
+		}
+	};
+    var jitter=function() {
+        fakeRouter.jitter=0.5;
 
+        var lowbie=makeLeader(1);
+        var i;
+        for(i=10; i< 20; ++i) {
+            makeLeader(i);
+        }
+        var leader=makeLeader(100);
+
+        lowbie.startElection();
+
+        // step forward time by 50ms at a shot until the chatter stops
+        moveTime(10);
+
+        for(i=0; i< fakeRouter.participants.length-1; ++i) {
+            if(fakeRouter.participants[i].isLeader()) {
+//					console.ozpIwc.log.debug("Leader " + i + " thinks he is the bully");
+            }
+            expect(fakeRouter.participants[i].isLeader()).toEqual(false);
+        }
+
+        expect(leader.isLeader()).toEqual(true);
+
+    };
+    
 	// since the jitter is random, run several rounds of it
 	for(var j=0;j<1;++j) {
 		it("member election works with jitter, round " + j, jitter);

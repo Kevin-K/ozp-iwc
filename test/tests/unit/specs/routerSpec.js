@@ -81,14 +81,26 @@ describe("Router", function() {
             router.registerParticipant(participant2);
         });
 
+        it("forwards connection packets",function(){
+            expect(fakePeer.packets).toContain(jasmine.objectContaining({
+                'action': "connect",
+                'src': participant.address
+            }));
+            expect(fakePeer.packets).toContain(jasmine.objectContaining({
+                'action': "connect",
+                'src': participant2.address
+            }));
+        });
+
         it("forwards to peer", function() {
-            var msg = participant.send({dst: "fakeName"});
+            var msg = participant.fixPacket({dst: "fakeName"});
             router.send(msg, participant);
-            expect(fakePeer.packets[0]).toEqual(msg);
+            expect(fakePeer.packets).toContain(msg);
         });
 
         it("routes locally", function() {
-            var msg = participant.send({dst: participant2.address});
+            participant2.packets = [];
+            var msg =  participant.fixPacket({dst: participant2.address});
             router.send(msg, participant);
             expect(participant2.packets[0].packet).toEqual(msg);
             expect(participant2.packets[0].srcParticipant).toBe(participant);
@@ -114,8 +126,9 @@ describe("Router", function() {
         });
 
         it("allows receipt of shared permissions", function(done) {
-            participant2.on("receive", function(packetContext) {
+            participant2.on("receive", function onreceive(packetContext) {
                 expect(packetContext.packet.entity).toEqual({foo: "bar"});
+                participant2.off("receive",onreceive);
                 done();
             });
             participant.send({
@@ -128,28 +141,32 @@ describe("Router", function() {
         });
 
         it("denies receipt of unshared permissions", function() {
-            participant.send({
-                    dst: participant2.address,
-                    permissions: {'ozp:iwc:color': "blue"},
-                    entity: {foo: "bar"}
-            });
+            var msg = {
+                dst: participant2.address,
+                permissions: {'ozp:iwc:color': "blue"},
+                entity: {foo: "bar"}
+            };
 
-            expect(participant2.packets.length).toEqual(0);
+            participant.send(msg);
+
+            expect(participant2.packets).not.toContain(jasmine.objectContaining(msg));
         });
 
         it("denies if the recipient doesn't have all permissions", function() {
-            participant.send({
+            var msg = {
                 dst: participant2.address,
                 permissions: {'ozp:iwc:perm': "shared", 'ozp:iwc:color': "blue"},
                 entity: {foo: "bar"}
-            });
+            };
+            participant.send(msg);
 
-            expect(participant2.packets.length).toEqual(0);
+            expect(participant2.packets).not.toContain(jasmine.objectContaining(msg));
         });
 
         it("allows a participant to send a packet to require permissions that it doesn't have, itself", function(done) {
-            participant2.on("receive", function(packetContext) {
+            participant2.on("receive", function onreceive(packetContext) {
                 expect(packetContext.packet.entity).toEqual({foo: "bar"});
+                participant2.off("receive",onreceive);
                 done();
             });
             participant.send({
