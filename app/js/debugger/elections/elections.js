@@ -26,8 +26,8 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
     $scope.selectedElection = $scope.graphData;
 
     $scope.clear = function(){
-        $scope.graphData.elections = new vis.DataSet();
-        $scope.graphData.electionGroups = new vis.DataSet();
+        $scope.graphData.elections.clear();
+        $scope.graphData.electionGroups.clear();
         $scope.graphData.packets = {};
         $scope.graphData.storageEvents = {};
     };

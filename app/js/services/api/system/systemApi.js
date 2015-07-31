@@ -182,7 +182,7 @@ ozpIwc.SystemApi.declareRoute({
 }, function(packet,context,pathParams) {
     ozpIwc.log.info(this.logPrefix+" handling launchdata ",packet.entity);
     if(packet.entity && packet.entity.inFlightIntent){
-        ozpIwc.util.openWindow(packet.entity.inFlightIntentEntity.entity.url,{
+        ozpIwc.util.openWindow(packet.entity.inFlightIntent.entity.entity.url,{
             "ozpIwc.peer":ozpIwc.BUS_ROOT,
             "ozpIwc.inFlightIntent":packet.entity.inFlightIntent
         });
