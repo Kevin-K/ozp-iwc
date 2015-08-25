@@ -69,13 +69,13 @@ ozpIwc.consensus.BaseConsensus = function(config){
 
 /**
  * Packet routing functionality of the consensus module. Expected to be overridden by subclass.
- * 
+ *
  * @method routePacket
  * @param {Object} packetContext
  */
-ozpIwc.consensus.BaseConsensus.prototype.routePacket= function(packetContext){
-   throw "routePacket is to be overridden by consensus implementation";
-};
+//ozpIwc.consensus.BaseConsensus.prototype.routePacket= function(packetContext){
+//   throw "routePacket is to be overridden by consensus implementation";
+//};
 
 
 /**
