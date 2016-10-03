@@ -1,8 +1,8 @@
 ---
-layout: old_tutorial
+layout: tutorial
 title: Eventing API
 category: owf
-tag: 1.2.2
+tag: 1.2.4
 ---
 # Migration from OWF Eventing to IWC Data API
 This tutorial is for developers who are migrating applications previously

@@ -1,9 +1,10 @@
 ---
-layout: old_tutorial
+layout: tutorial
 title: Setup and Key Terms
-permalink: "1.2.2/tutorial/index.html"
+permalink: "1.2.4/tutorial/index.html"
+redirect_from: "/tutorial/"
 category: basic
-tag: 1.2.2
+tag: 1.2.4
 ---
 
 # Quick Start

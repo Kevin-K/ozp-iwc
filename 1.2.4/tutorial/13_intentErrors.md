@@ -1,8 +1,8 @@
 ---
-layout: old_tutorial
+layout: tutorial
 title: Intent Error Handling
 category: intermediate
-tag: 1.2.2
+tag: 1.2.4
 ---
 
 # Handling Errors when Invoking Intents

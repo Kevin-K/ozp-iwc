@@ -1,0 +1,48 @@
+---
+Title: Popup Pen
+---
+<head>
+    <script async src="//assets.codepen.io/assets/embed/ei.js"></script>
+    <script>
+        var embedPopup = function (hash, height, width) {
+            if (!hash) {
+                return;
+            }
+
+            width = width || 600;
+            height = height || 600;
+            var settings = "width=" + width + ", height=" + height;
+            var p = document.createElement("p");
+
+            p.setAttribute("data-height", height);
+            p.setAttribute("data-theme-id", 0);
+            p.setAttribute("data-slug-hash", hash);
+            p.setAttribute("data-default-tab", "result");
+            p.setAttribute("data-user", "Kevin-K");
+            p.setAttribute("class", "codepen");
+
+            document.body.appendChild(p);
+
+        };
+        var parseQueryParams = function (query) {
+            query = query || window.location.search;
+            var params = {};
+            var regex = /\??([^&=]+)=?([^&]*)/g;
+            var match;
+            while ((match = regex.exec(query)) !== null) {
+                params[match[1]] = decodeURIComponent(match[2]);
+            }
+            return params;
+        };
+
+        window.onload = function () {
+            var params = parseQueryParams();
+            if (params.title) {
+                window.document.title = params.title;
+            }
+            embedPopup(params.hash, window.innerHeight * 0.9);
+        };
+    </script>
+</head>
+<body>
+</body>

@@ -1,8 +1,8 @@
 ---
-layout: old_tutorial
+layout: tutorial
 title: Basic Data Watching
 category: basic
-tag: 1.2.2
+tag: 1.2.4
 ---
 # Leveraging the Watch Action
 As explained in the [Using Resources](01_quickStart.html) tutorial, the `watch`

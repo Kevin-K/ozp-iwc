@@ -1,8 +1,8 @@
 ---
-layout: old_tutorial
+layout: tutorial
 title: Location Viewer
 category: advanced
-tag: 1.2.2
+tag: 1.2.4
 ---
 To understand this tutorial, understanding how to create & connect an IWC client
 is necessary, as well as an understanding of the Data & Intents API. Advanced

@@ -2,7 +2,6 @@
 layout: old_examples
 title: Shared Control
 permalink: "1.2.0/examples/index.html"
-redirect_from: "/examples/"
 category: basic
 tag: 1.2.0
 ---

@@ -1,8 +1,8 @@
 ---
-layout: old_tutorial
+layout: tutorial
 title: Resource Path Convention
 category: intermediate
-tag: 1.2.2
+tag: 1.2.4
 ---
 # Why the / ?
 The IWC utilizes forward slashes to signify hierarchy of resources. Borrowing from REST, IWC uses the `/` to show
