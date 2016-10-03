@@ -1,4 +1,4 @@
-var client = new ozpIwc.Client({peerUrl: "http://ozone-development.github.io/ozp-iwc/"});
+var client = new ozpIwc.Client({peerUrl: "//aml-development.github.io/ozp-iwc"});
 
 var listings = {
     '/locationLister/listings/chicago': {
